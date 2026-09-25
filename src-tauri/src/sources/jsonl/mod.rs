@@ -1,4 +1,5 @@
 pub mod line;
+pub mod reader;
 
 use std::ffi::OsString;
 use std::path::PathBuf;
