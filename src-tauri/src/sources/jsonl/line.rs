@@ -40,19 +40,23 @@ struct RawMessage {
 
 #[derive(Deserialize)]
 struct RawUsage {
-    input_tokens: Option<u64>,
-    output_tokens: Option<u64>,
-    cache_creation_input_tokens: Option<u64>,
-    cache_read_input_tokens: Option<u64>,
+    #[serde(rename = "input_tokens")]
+    input: Option<u64>,
+    #[serde(rename = "output_tokens")]
+    output: Option<u64>,
+    #[serde(rename = "cache_creation_input_tokens")]
+    cache_creation: Option<u64>,
+    #[serde(rename = "cache_read_input_tokens")]
+    cache_read: Option<u64>,
 }
 
 impl RawUsage {
     fn into_counts(self) -> TokenCounts {
         TokenCounts {
-            input: self.input_tokens.unwrap_or_default(),
-            output: self.output_tokens.unwrap_or_default(),
-            cache_creation: self.cache_creation_input_tokens.unwrap_or_default(),
-            cache_read: self.cache_read_input_tokens.unwrap_or_default(),
+            input: self.input.unwrap_or_default(),
+            output: self.output.unwrap_or_default(),
+            cache_creation: self.cache_creation.unwrap_or_default(),
+            cache_read: self.cache_read.unwrap_or_default(),
         }
     }
 }
