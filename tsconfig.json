@@ -22,5 +22,5 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "*.config.ts", "*.config.js"]
+  "include": ["src/**/*.ts", "src/**/*.svelte", "tests/**/*.ts", "*.config.ts", "*.config.js"]
 }

@@ -1,5 +1,5 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 const devHost = process.env.TAURI_DEV_HOST;
 
@@ -20,5 +20,9 @@ export default defineConfig({
     minify: !process.env.TAURI_ENV_DEBUG,
     sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
     modulePreload: { polyfill: false },
+  },
+  test: {
+    include: ["tests/**/*.test.ts"],
+    environment: "node",
   },
 });

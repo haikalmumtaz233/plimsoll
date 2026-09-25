@@ -16,7 +16,9 @@
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "lint": "eslint .",
     "format": "prettier --write \"{src,tests,scripts,.github}/**/*.{ts,js,svelte,css,html,json,yml}\" \"src-tauri/**/*.json\" \"*.{ts,js,json,html}\"",
-    "format:check": "prettier --check \"{src,tests,scripts,.github}/**/*.{ts,js,svelte,css,html,json,yml}\" \"src-tauri/**/*.json\" \"*.{ts,js,json,html}\""
+    "format:check": "prettier --check \"{src,tests,scripts,.github}/**/*.{ts,js,svelte,css,html,json,yml}\" \"src-tauri/**/*.json\" \"*.{ts,js,json,html}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1"
@@ -37,6 +39,7 @@
     "svelte-check": "^4.7.6",
     "typescript": "~6.0.0",
     "typescript-eslint": "^8.70.1",
-    "vite": "^8.3.1"
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
   }
 }
