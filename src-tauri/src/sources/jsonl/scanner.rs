@@ -3,9 +3,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use super::line::{self, DedupeKey};
+use super::line;
 use super::reader::{MAX_LINE_BYTES, read_appended_lines};
-use crate::domain::record::UsageEvent;
+use crate::domain::record::{EventKey, KeyedEvent};
 use crate::sources::SourceError;
 
 const MAX_DEPTH: usize = 4;
@@ -15,7 +15,7 @@ const EXTENSION: &str = "jsonl";
 pub struct JsonlSource {
     root: PathBuf,
     offsets: HashMap<PathBuf, u64>,
-    seen: HashSet<DedupeKey>,
+    seen: HashSet<EventKey>,
 }
 
 impl JsonlSource {
@@ -29,21 +29,41 @@ impl JsonlSource {
     }
 
     #[must_use]
+    pub fn with_offsets(root: PathBuf, offsets: Vec<(PathBuf, u64)>) -> Self {
+        Self {
+            root,
+            offsets: offsets.into_iter().collect(),
+            seen: HashSet::new(),
+        }
+    }
+
+    #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    pub fn poll(&mut self) -> Result<Vec<UsageEvent>, SourceError> {
+    #[must_use]
+    pub fn offsets(&self) -> Vec<(PathBuf, u64)> {
+        let mut offsets: Vec<(PathBuf, u64)> = self
+            .offsets
+            .iter()
+            .map(|(path, offset)| (path.clone(), *offset))
+            .collect();
+        offsets.sort();
+        offsets
+    }
+
+    pub fn poll(&mut self) -> Result<Vec<KeyedEvent>, SourceError> {
         let mut events = Vec::new();
         for path in discover(&self.root)? {
             let offset = self.offsets.get(&path).copied().unwrap_or(0);
             let seen = &mut self.seen;
             let result =
                 read_appended_lines(&path, offset, MAX_LINE_BYTES, &mut |bytes: &[u8]| {
-                    if let Some(record) = line::parse(bytes)
-                        && seen.insert(record.key)
+                    if let Some(keyed) = line::parse(bytes)
+                        && seen.insert(keyed.key.clone())
                     {
-                        events.push(record.event);
+                        events.push(keyed);
                     }
                 });
             match result {
@@ -147,8 +167,8 @@ mod tests {
         let mut source = JsonlSource::new(root.clone());
         let first = source.poll().expect("first poll");
         assert_eq!(first.len(), 2);
-        assert_eq!(first[0].tokens.output, 10);
-        assert_eq!(first[1].tokens.output, 20);
+        assert_eq!(first[0].event.tokens.output, 10);
+        assert_eq!(first[1].event.tokens.output, 20);
 
         assert!(source.poll().expect("idle poll").is_empty());
 
@@ -158,7 +178,7 @@ mod tests {
         );
         let next = source.poll().expect("incremental poll");
         assert_eq!(next.len(), 1);
-        assert_eq!(next[0].tokens.output, 30);
+        assert_eq!(next[0].event.tokens.output, 30);
 
         fs::remove_dir_all(&root).expect("cleanup");
     }
@@ -173,7 +193,27 @@ mod tests {
         let mut source = JsonlSource::new(root.clone());
         let events = source.poll().expect("poll");
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].project, "project-a");
+        assert_eq!(events[0].event.project, "project-a");
+
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn resumes_from_persisted_offsets() {
+        let root = scratch_dir("resume");
+        let session = root.join("project-a").join("session.jsonl");
+        append(&session, &usage_line("msg_1", 10));
+
+        let mut first = JsonlSource::new(root.clone());
+        assert_eq!(first.poll().expect("first poll").len(), 1);
+        let offsets = first.offsets();
+        assert_eq!(offsets.len(), 1);
+
+        append(&session, &usage_line("msg_2", 20));
+        let mut resumed = JsonlSource::with_offsets(root.clone(), offsets);
+        let events = resumed.poll().expect("resumed poll");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].key.message_id, "msg_2");
 
         fs::remove_dir_all(&root).expect("cleanup");
     }
