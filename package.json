@@ -1,0 +1,31 @@
+{
+  "name": "plimsoll",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A tiny Windows tray app for Claude plan limits",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tauri-apps/cli": "^2.11.5",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.13.6",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "~6.0.0",
+    "vite": "^8.3.1"
+  }
+}
