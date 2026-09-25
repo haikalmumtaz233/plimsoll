@@ -1,4 +1,5 @@
 mod menu;
+pub mod palette;
 mod popup;
 
 use tauri::menu::{Menu, MenuEvent, MenuItem};
