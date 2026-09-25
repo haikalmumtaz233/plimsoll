@@ -1,3 +1,5 @@
+pub mod clock;
+
 use crate::error::AppError;
 use crate::tray;
 
