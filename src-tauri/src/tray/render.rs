@@ -6,7 +6,8 @@ pub const MAX_SIZE: u32 = 64;
 
 const SIZES: [u32; 7] = [16, 20, 24, 32, 40, 48, 64];
 const BASE_SIZE: f64 = 16.0;
-const PADDING: u32 = 1;
+const ROOMY_SIZE: u32 = 24;
+const MARGIN_DIVISOR: u32 = 8;
 const OPAQUE: u8 = 0xFF;
 const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 
@@ -58,11 +59,21 @@ pub fn render(label: &str, palette: Palette, size: u32) -> Option<Bitmap> {
 
 fn layout(glyphs: &[Glyph], size: u32) -> Option<Layout> {
     let units = text_units(glyphs)?;
-    let room = if units + 2 * PADDING <= size {
-        size - 2 * PADDING
+    [margin(size), 1, 0]
+        .into_iter()
+        .find_map(|margin| fit(units, size, margin))
+}
+
+const fn margin(size: u32) -> u32 {
+    if size < ROOMY_SIZE {
+        1
     } else {
-        size
-    };
+        size / MARGIN_DIVISOR
+    }
+}
+
+fn fit(units: u32, size: u32, margin: u32) -> Option<Layout> {
+    let room = size.checked_sub(2 * margin)?;
     let scale_x = (room / units).min(room / glyph::HEIGHT);
     if scale_x == 0 {
         return None;
@@ -218,8 +229,29 @@ mod tests {
     #[test]
     fn larger_icons_scale_the_text_up() {
         let small = lit_bounds(&render("42", PALETTE, 16).expect("fits"));
-        let large = lit_bounds(&render("42", PALETTE, 32).expect("fits"));
+        let large = lit_bounds(&render("42", PALETTE, 48).expect("fits"));
         assert!(large.1 - large.0 > 2 * (small.1 - small.0));
+        assert!(large.3 - large.2 > 2 * (small.3 - small.2));
+    }
+
+    #[test]
+    fn larger_icons_keep_an_eighth_of_the_badge_around_short_labels() {
+        for size in [24, 32, 40, 48, 64] {
+            for label in ["-", "7", "42", "100"] {
+                let bitmap = render(label, PALETTE, size).expect("fits");
+                let (min_x, max_x, min_y, max_y) = lit_bounds(&bitmap);
+                let margin = usize::try_from(size / 8).expect("size");
+                let last = usize::try_from(size - 1).expect("size");
+                assert!(
+                    min_x >= margin && max_x <= last - margin,
+                    "{label} at {size}"
+                );
+                assert!(
+                    min_y >= margin && max_y <= last - margin,
+                    "{label} at {size}"
+                );
+            }
+        }
     }
 
     #[test]
