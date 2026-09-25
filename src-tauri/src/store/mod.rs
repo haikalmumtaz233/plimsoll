@@ -1,5 +1,6 @@
 mod events;
 mod migrate;
+mod offsets;
 mod settings;
 
 use std::path::Path;
