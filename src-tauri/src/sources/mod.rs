@@ -1,4 +1,5 @@
 pub mod jsonl;
+pub mod oauth;
 pub mod rfc3339;
 
 use std::ffi::OsString;
