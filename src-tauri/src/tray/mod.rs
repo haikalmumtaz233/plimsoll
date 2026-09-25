@@ -1,6 +1,8 @@
+pub mod glyph;
 mod menu;
 pub mod palette;
 mod popup;
+pub mod render;
 
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
