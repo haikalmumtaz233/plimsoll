@@ -1,24 +1,12 @@
 use serde::Deserialize;
 
-use crate::domain::record::UsageEvent;
+use crate::domain::record::{EventKey, KeyedEvent, UsageEvent};
 use crate::domain::tokens::TokenCounts;
 use crate::sources::rfc3339;
 
 const USAGE_MARKER: &[u8] = b"\"usage\"";
 const ASSISTANT_KIND: &str = "assistant";
 const UNKNOWN_PROJECT: &str = "unknown";
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct DedupeKey {
-    pub message_id: String,
-    pub request_id: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UsageRecord {
-    pub key: DedupeKey,
-    pub event: UsageEvent,
-}
 
 #[derive(Deserialize)]
 struct RawLine {
@@ -62,7 +50,7 @@ impl RawUsage {
 }
 
 #[must_use]
-pub fn parse(line: &[u8]) -> Option<UsageRecord> {
+pub fn parse(line: &[u8]) -> Option<KeyedEvent> {
     if !contains(line, USAGE_MARKER) {
         return None;
     }
@@ -75,8 +63,8 @@ pub fn parse(line: &[u8]) -> Option<UsageRecord> {
     let usage = message.usage?;
     let message_id = message.id?;
     let at = rfc3339::parse(raw.timestamp.as_deref()?)?;
-    Some(UsageRecord {
-        key: DedupeKey {
+    Some(KeyedEvent {
+        key: EventKey {
             message_id,
             request_id: raw.request_id.unwrap_or_default(),
         },
@@ -103,7 +91,8 @@ fn project_name(cwd: Option<&str>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{DedupeKey, parse};
+    use super::parse;
+    use crate::domain::record::EventKey;
     use crate::domain::tokens::TokenCounts;
     use serde_json::{Value, json};
 
@@ -150,7 +139,7 @@ mod tests {
         let record = parse(&assistant(&json!({}))).expect("record");
         assert_eq!(
             record.key,
-            DedupeKey {
+            EventKey {
                 message_id: "msg_1".to_owned(),
                 request_id: "req_1".to_owned(),
             }
