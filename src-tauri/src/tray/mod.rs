@@ -5,34 +5,64 @@ mod popup;
 pub mod reading;
 pub mod render;
 
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Runtime};
 
+use crate::app::clock;
+use crate::domain::clock::Timestamp;
 use crate::error::AppError;
 use menu::MenuAction;
+use reading::TrayReading;
 
 const TRAY_ID: &str = "plimsoll";
-const TOOLTIP: &str = "Plimsoll";
+const DEFAULT_SCALE: f64 = 1.0;
 
 pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
-    let icon = app
-        .default_window_icon()
-        .cloned()
-        .ok_or(AppError::MissingIcon)?;
+    let idle = TrayReading::Idle;
     let open = menu_item(app, MenuAction::Open)?;
     let quit = menu_item(app, MenuAction::Quit)?;
     let menu = Menu::with_items(app, &[&open, &quit])?;
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(icon)
-        .tooltip(TOOLTIP)
+        .icon(icon_image(app, &idle)?)
+        .tooltip(idle.tooltip(clock::now()))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| handle_menu_event(app, &event))
         .on_tray_icon_event(|tray, event| handle_tray_event(tray.app_handle(), &event))
         .build(app)?;
     Ok(())
+}
+
+pub fn show_reading<R: Runtime>(
+    app: &AppHandle<R>,
+    reading: &TrayReading,
+    now: Timestamp,
+) -> Result<(), AppError> {
+    let tray = app.tray_by_id(TRAY_ID).ok_or(AppError::MissingTray)?;
+    tray.set_icon(Some(icon_image(app, reading)?))?;
+    tray.set_tooltip(Some(reading.tooltip(now)))?;
+    Ok(())
+}
+
+fn icon_image<R: Runtime>(
+    app: &AppHandle<R>,
+    reading: &TrayReading,
+) -> Result<Image<'static>, AppError> {
+    let scale = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map_or(DEFAULT_SCALE, |monitor| monitor.scale_factor());
+    let bitmap = render::render(
+        &reading.label(),
+        reading.tone().palette(),
+        render::icon_size(scale),
+    )
+    .ok_or(AppError::IconRender)?;
+    Ok(Image::new_owned(bitmap.rgba, bitmap.size, bitmap.size))
 }
 
 fn menu_item<R: Runtime>(app: &AppHandle<R>, action: MenuAction) -> Result<MenuItem<R>, AppError> {
