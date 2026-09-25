@@ -1,6 +1,6 @@
 use rusqlite::params;
 
-use super::{Database, DatabaseError, RETENTION, from_sql_count, to_sql_count};
+use super::{Database, DatabaseError, from_sql_count, to_sql_count};
 use crate::domain::clock::Timestamp;
 use crate::domain::period::Window;
 use crate::domain::record::{KeyedEvent, UsageEvent};
@@ -70,10 +70,6 @@ impl Database {
                 params![cutoff.unix_millis()],
             )
             .map_err(DatabaseError::from)
-    }
-
-    pub fn prune_expired(&self, now: Timestamp) -> Result<usize, DatabaseError> {
-        self.prune_events_before(now - RETENTION)
     }
 }
 

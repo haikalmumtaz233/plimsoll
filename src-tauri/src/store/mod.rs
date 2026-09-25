@@ -2,13 +2,16 @@ mod events;
 mod migrate;
 mod offsets;
 mod settings;
+mod snapshots;
 
 use std::path::Path;
 
 use rusqlite::Connection;
 use thiserror::Error;
 
-use crate::domain::clock::Span;
+use crate::domain::clock::{Span, Timestamp};
+
+pub use snapshots::StoredSnapshot;
 
 pub const RETENTION: Span = Span::days(90);
 
@@ -36,6 +39,11 @@ impl Database {
 
     pub fn schema_version(&self) -> Result<i64, DatabaseError> {
         migrate::current_version(&self.connection)
+    }
+
+    pub fn prune_expired(&self, now: Timestamp) -> Result<usize, DatabaseError> {
+        let cutoff = now - RETENTION;
+        Ok(self.prune_events_before(cutoff)? + self.prune_snapshots_before(cutoff)?)
     }
 
     fn initialize(mut connection: Connection) -> Result<Self, DatabaseError> {
