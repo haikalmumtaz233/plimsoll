@@ -1,3 +1,4 @@
+pub mod jsonl;
 pub mod rfc3339;
 
 use thiserror::Error;
