@@ -17,6 +17,13 @@ impl TokenCounts {
             .saturating_add(self.cache_creation)
             .saturating_add(self.cache_read)
     }
+
+    #[must_use]
+    pub const fn excluding_cache_reads(self) -> u64 {
+        self.input
+            .saturating_add(self.output)
+            .saturating_add(self.cache_creation)
+    }
 }
 
 impl Add for TokenCounts {
@@ -59,6 +66,11 @@ mod tests {
     fn total_sums_every_kind() {
         assert_eq!(SAMPLE.total(), 4_321);
         assert_eq!(TokenCounts::default().total(), 0);
+    }
+
+    #[test]
+    fn cache_reads_can_be_left_out_of_the_total() {
+        assert_eq!(SAMPLE.excluding_cache_reads(), 321);
     }
 
     #[test]
