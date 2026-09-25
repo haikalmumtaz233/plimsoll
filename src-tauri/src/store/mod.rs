@@ -1,3 +1,4 @@
+mod events;
 mod migrate;
 mod settings;
 
@@ -5,6 +6,10 @@ use std::path::Path;
 
 use rusqlite::Connection;
 use thiserror::Error;
+
+use crate::domain::clock::Span;
+
+pub const RETENTION: Span = Span::days(90);
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
@@ -40,10 +45,25 @@ impl Database {
     }
 }
 
+fn to_sql_count(value: u64) -> i64 {
+    i64::try_from(value).unwrap_or(i64::MAX)
+}
+
+fn from_sql_count(value: i64) -> u64 {
+    u64::try_from(value).unwrap_or(0)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Database;
+    use super::{Database, from_sql_count, to_sql_count};
     use std::fs;
+
+    #[test]
+    fn counts_round_trip_and_clamp() {
+        assert_eq!(from_sql_count(to_sql_count(42)), 42);
+        assert_eq!(to_sql_count(u64::MAX), i64::MAX);
+        assert_eq!(from_sql_count(-5), 0);
+    }
 
     #[test]
     fn file_database_keeps_data_between_opens() {
