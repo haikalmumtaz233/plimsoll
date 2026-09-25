@@ -1,0 +1,50 @@
+{
+  "name": "plimsoll",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A tiny Windows tray app for Claude plan limits",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "lint": "eslint .",
+    "format": "prettier --write \"{src,tests,scripts,.github}/**/*.{ts,js,svelte,css,html,json,yml}\" \"src-tauri/**/*.json\" \"*.{ts,js,json,html}\"",
+    "format:check": "prettier --check \"{src,tests,scripts,.github}/**/*.{ts,js,svelte,css,html,json,yml}\" \"src-tauri/**/*.json\" \"*.{ts,js,json,html}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "version:sync": "node scripts/sync-version.ts",
+    "version:check": "node scripts/sync-version.ts --check",
+    "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check",
+    "rust:lint": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings",
+    "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml --locked"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tauri-apps/cli": "^2.11.5",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.13.6",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.23.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-svelte": "^4.1.1",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
+  }
+}

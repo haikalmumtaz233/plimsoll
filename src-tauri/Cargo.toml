@@ -1,0 +1,46 @@
+[package]
+name = "plimsoll"
+version = "0.1.0"
+description = "A tiny Windows tray app for Claude plan limits"
+authors = ["Haikal Mumtaz"]
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[lib]
+name = "plimsoll_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "plimsoll"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+thiserror = "2"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

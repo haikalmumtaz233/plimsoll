@@ -1,0 +1,62 @@
+:root {
+  --color-surface: #ffffff;
+  --color-text: #1b1b1f;
+  --color-text-muted: #55565e;
+  --color-border: #d4d5db;
+  --color-focus: #0b57d0;
+  --radius-md: 0.5rem;
+  --space-2: 0.5rem;
+  --space-4: 1rem;
+  --font-body: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --duration-fast: 120ms;
+
+  color-scheme: light dark;
+  font-family: var(--font-body);
+  font-size: 100%;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: #1c1c1f;
+    --color-text: #f1f1f4;
+    --color-text-muted: #b4b5bd;
+    --color-border: #3a3b41;
+    --color-focus: #a8c7fa;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --color-surface: Canvas;
+    --color-text: CanvasText;
+    --color-text-muted: CanvasText;
+    --color-border: CanvasText;
+    --color-focus: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-surface);
+}
+
+:focus-visible {
+  outline: 0.125rem solid var(--color-focus);
+  outline-offset: 0.125rem;
+}
