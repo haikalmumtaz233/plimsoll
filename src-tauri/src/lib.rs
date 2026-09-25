@@ -1,4 +1,5 @@
 mod app;
+pub mod domain;
 mod error;
 mod tray;
 
