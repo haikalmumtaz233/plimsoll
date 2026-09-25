@@ -2,6 +2,7 @@ pub mod glyph;
 mod menu;
 pub mod palette;
 mod popup;
+pub mod reading;
 pub mod render;
 
 use tauri::menu::{Menu, MenuEvent, MenuItem};
