@@ -1,4 +1,5 @@
 pub mod app;
+mod commands;
 pub mod domain;
 mod error;
 pub mod sources;

@@ -3,5 +3,12 @@
   "identifier": "popup",
   "description": "Minimal permissions for the tray popup window",
   "windows": ["popup"],
-  "permissions": ["core:app:allow-version", "core:window:allow-hide"]
+  "permissions": [
+    "core:app:allow-version",
+    "core:window:allow-hide",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-usage-summary",
+    "allow-set-accurate-mode"
+  ]
 }

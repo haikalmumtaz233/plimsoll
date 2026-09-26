@@ -1,3 +1,10 @@
+const COMMANDS: &[&str] = &["usage_summary", "set_accurate_mode"];
+
 fn main() {
-    tauri_build::build();
+    let attributes = tauri_build::Attributes::new()
+        .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS));
+    if let Err(error) = tauri_build::try_build(attributes) {
+        eprintln!("{error:#}");
+        std::process::exit(1);
+    }
 }
