@@ -20,6 +20,14 @@ pub struct LimitView {
     pub resets_at: Option<i64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EstimateView {
+    pub kind: &'static str,
+    pub percent: f64,
+    pub samples: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenView {
@@ -110,6 +118,7 @@ pub struct UsageView {
     pub status: OAuthStatus,
     pub preferences: PreferencesView,
     pub limits: Vec<LimitView>,
+    pub estimates: Vec<EstimateView>,
     pub five_hour: TokenView,
     pub weekly: TokenView,
     pub history: HistoryView,
@@ -125,6 +134,15 @@ impl UsageView {
             status: report.status,
             preferences: preferences_view(report.preferences, language),
             limits: report.summary.limits.iter().map(limit_view).collect(),
+            estimates: report
+                .estimates
+                .iter()
+                .map(|estimate| EstimateView {
+                    kind: estimate.kind.name(),
+                    percent: estimate.utilization.percent(),
+                    samples: estimate.samples,
+                })
+                .collect(),
             five_hour: token_view(report.summary.five_hour),
             weekly: token_view(report.summary.weekly),
             history: history_view(&report.summary.history),
@@ -210,6 +228,7 @@ mod tests {
     use super::UsageView;
     use crate::app::engine::Report;
     use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking, Share};
+    use crate::domain::calibration::Estimate;
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
@@ -229,6 +248,11 @@ mod tests {
             accurate_mode: true,
             status: OAuthStatus::Active,
             preferences: Preferences::default(),
+            estimates: vec![Estimate {
+                kind: LimitKind::SevenDay,
+                utilization: Utilization::from_percent(12.5).expect("valid percent"),
+                samples: 4,
+            }],
             summary: UsageSummary {
                 limits: vec![LimitSnapshot {
                     kind: LimitKind::FiveHour,
@@ -287,6 +311,7 @@ mod tests {
                     "percent": 42.5,
                     "resetsAt": window.end().unix_millis()
                 }],
+                "estimates": [{ "kind": "seven_day", "percent": 12.5, "samples": 4 }],
                 "fiveHour": {
                     "tokens": 6,
                     "windowStart": window.start().unix_millis(),

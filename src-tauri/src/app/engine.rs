@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use crate::domain::alerts::{self, Alert};
-use crate::domain::clock::Timestamp;
-use crate::domain::limit::LimitSnapshot;
+use crate::domain::calibration::{self, Calibration, Estimate, Sample};
+use crate::domain::clock::{Span, Timestamp};
+use crate::domain::limit::{LimitKind, LimitSnapshot};
+use crate::domain::period::Window;
 use crate::domain::preferences::Preferences;
 use crate::domain::record::KeyedEvent;
 use crate::domain::summary::{self, UsageSummary};
@@ -10,12 +12,15 @@ use crate::sources::oauth::poll::PollResult;
 use crate::sources::oauth::status::OAuthStatus;
 use crate::store::{Database, DatabaseError};
 
+pub const CALIBRATION_LOOKBACK: Span = Span::days(30);
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Report {
     pub accurate_mode: bool,
     pub status: OAuthStatus,
     pub preferences: Preferences,
     pub summary: UsageSummary,
+    pub estimates: Vec<Estimate>,
 }
 
 #[derive(Debug)]
@@ -110,12 +115,65 @@ impl Engine {
             Vec::new()
         };
         let events = self.database.events_in(summary::lookback(&limits, now))?;
+        let summary = summary::summarize(limits, &events, now);
         Ok(Report {
             accurate_mode,
             status: self.status,
             preferences: self.database.preferences()?,
-            summary: summary::summarize(limits, &events, now),
+            estimates: self.estimates(&summary, now)?,
+            summary,
         })
+    }
+
+    fn estimates(
+        &self,
+        summary: &UsageSummary,
+        now: Timestamp,
+    ) -> Result<Vec<Estimate>, DatabaseError> {
+        if !summary.limits.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut estimates = Vec::new();
+        for (kind, window) in [
+            (LimitKind::FiveHour, summary.five_hour),
+            (LimitKind::SevenDay, summary.weekly),
+        ] {
+            if window.window.is_none() {
+                continue;
+            }
+            if let Some(calibration) = self.calibration(kind, now)?
+                && let Some(utilization) =
+                    calibration.estimate(window.tokens.excluding_cache_reads())
+            {
+                estimates.push(Estimate {
+                    kind,
+                    utilization,
+                    samples: calibration.samples(),
+                });
+            }
+        }
+        Ok(estimates)
+    }
+
+    fn calibration(
+        &self,
+        kind: LimitKind,
+        now: Timestamp,
+    ) -> Result<Option<Calibration>, DatabaseError> {
+        let observations = self
+            .database
+            .window_peaks(kind, now - CALIBRATION_LOOKBACK)?;
+        let mut samples = Vec::new();
+        for peak in calibration::peaks(&observations, kind) {
+            let start = peak.window.start();
+            let seen =
+                Window::starting_at(start, (peak.observed_at + Span::from_millis(1)) - start);
+            samples.push(Sample {
+                utilization: peak.utilization,
+                tokens: self.database.tokens_in(seen)?.excluding_cache_reads(),
+            });
+        }
+        Ok(calibration::calibrate(&samples))
     }
 
     fn current_limits(&self, now: Timestamp) -> Result<Vec<LimitSnapshot>, DatabaseError> {
@@ -277,6 +335,43 @@ mod tests {
             engine.take_alerts(NOW).expect("alerts")[0].severity,
             Severity::Critical
         );
+    }
+
+    #[test]
+    fn fallback_reports_estimate_percent_once_calibrated() {
+        let mut engine = engine();
+        engine.set_accurate_mode(true).expect("opt in");
+        let mut past_events = Vec::new();
+        for index in 1..=3_i64 {
+            let resets_at = NOW - Span::hours(6 * index);
+            past_events.push(keyed(&format!("past{index}"), (6 * index + 2) * 60, 1_000));
+            engine
+                .record_oauth(
+                    &Ok(vec![LimitSnapshot {
+                        kind: LimitKind::FiveHour,
+                        utilization: Utilization::from_percent(10.0).expect("valid percent"),
+                        resets_at: Some(resets_at),
+                    }]),
+                    resets_at - Span::hours(1),
+                )
+                .expect("record");
+        }
+        past_events.push(keyed("now", 10, 4_200));
+        engine.store_jsonl(&past_events, &[]).expect("store");
+
+        engine.set_accurate_mode(false).expect("opt out");
+        let report = engine.report(NOW).expect("report");
+        assert!(report.summary.limits.is_empty());
+        assert_eq!(report.estimates.len(), 1);
+        assert_eq!(report.estimates[0].kind, LimitKind::FiveHour);
+        assert_eq!(report.estimates[0].samples, 3);
+        assert!((report.estimates[0].utilization.percent() - 42.0).abs() < 1e-9);
+
+        engine.set_accurate_mode(true).expect("opt in again");
+        engine
+            .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
+            .expect("record current");
+        assert!(engine.report(NOW).expect("report").estimates.is_empty());
     }
 
     #[test]
