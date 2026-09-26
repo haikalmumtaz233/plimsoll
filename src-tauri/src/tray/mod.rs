@@ -78,7 +78,7 @@ fn menu_item<R: Runtime>(app: &AppHandle<R>, action: MenuAction) -> Result<MenuI
 
 fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: &MenuEvent) {
     match MenuAction::from_id(event.id().as_ref()) {
-        Some(MenuAction::Open) => report(popup::show(app)),
+        Some(MenuAction::Open) => report(popup::show(app, None)),
         Some(MenuAction::Quit) => app.exit(0),
         None => {}
     }
@@ -88,10 +88,11 @@ fn handle_tray_event<R: Runtime>(app: &AppHandle<R>, event: &TrayIconEvent) {
     if let TrayIconEvent::Click {
         button: MouseButton::Left,
         button_state: MouseButtonState::Up,
+        rect,
         ..
     } = event
     {
-        report(popup::toggle(app));
+        report(popup::toggle(app, Some(*rect)));
     }
 }
 

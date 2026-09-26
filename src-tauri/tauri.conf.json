@@ -23,8 +23,7 @@
         "minimizable": false,
         "decorations": false,
         "skipTaskbar": true,
-        "alwaysOnTop": true,
-        "center": true
+        "alwaysOnTop": true
       }
     ],
     "security": {
