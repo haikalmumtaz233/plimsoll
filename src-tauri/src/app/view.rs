@@ -7,7 +7,7 @@ use crate::domain::clock::Timestamp;
 use crate::domain::history::{BUCKET, HourlyHistory};
 use crate::domain::limit::LimitSnapshot;
 use crate::domain::period::Window;
-use crate::domain::preferences::{PollInterval, Preferences};
+use crate::domain::preferences::{Language, PollInterval, Preferences};
 use crate::domain::summary::TokenWindow;
 use crate::sources::oauth::status::OAuthStatus;
 use crate::toast::Message;
@@ -79,6 +79,7 @@ pub struct PreferencesView {
     pub poll_minutes: u8,
     pub poll_choices: Vec<u8>,
     pub language: &'static str,
+    pub resolved_language: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -118,11 +119,11 @@ pub struct UsageView {
 
 impl UsageView {
     #[must_use]
-    pub fn from_report(report: &Report, now: Timestamp) -> Self {
+    pub fn from_report(report: &Report, language: Language, now: Timestamp) -> Self {
         Self {
             accurate_mode: report.accurate_mode,
             status: report.status,
-            preferences: preferences_view(report.preferences),
+            preferences: preferences_view(report.preferences, language),
             limits: report.summary.limits.iter().map(limit_view).collect(),
             five_hour: token_view(report.summary.five_hour),
             weekly: token_view(report.summary.weekly),
@@ -141,7 +142,7 @@ fn limit_view(limit: &LimitSnapshot) -> LimitView {
     }
 }
 
-fn preferences_view(preferences: Preferences) -> PreferencesView {
+fn preferences_view(preferences: Preferences, language: Language) -> PreferencesView {
     let thresholds = preferences.thresholds;
     PreferencesView {
         thresholds: ThresholdsView {
@@ -152,6 +153,7 @@ fn preferences_view(preferences: Preferences) -> PreferencesView {
         poll_minutes: preferences.poll_interval.minutes(),
         poll_choices: PollInterval::CHOICES.to_vec(),
         language: preferences.language.code(),
+        resolved_language: language.code(),
     }
 }
 
@@ -212,7 +214,7 @@ mod tests {
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::period::Window;
-    use crate::domain::preferences::Preferences;
+    use crate::domain::preferences::{Language, Preferences};
     use crate::domain::summary::{TokenWindow, UsageSummary};
     use crate::domain::tokens::TokenCounts;
     use crate::sources::oauth::status::OAuthStatus;
@@ -265,7 +267,9 @@ mod tests {
                 },
             },
         };
-        let value = serde_json::to_value(UsageView::from_report(&report, NOW)).expect("json");
+        let value =
+            serde_json::to_value(UsageView::from_report(&report, Language::Indonesian, NOW))
+                .expect("json");
         assert_eq!(
             value,
             json!({
@@ -275,7 +279,8 @@ mod tests {
                     "thresholds": { "elevated": 50, "high": 80, "critical": 95 },
                     "pollMinutes": 1,
                     "pollChoices": [1, 2, 5, 10],
-                    "language": "system"
+                    "language": "system",
+                    "resolvedLanguage": "id"
                 },
                 "limits": [{
                     "kind": "five_hour",
