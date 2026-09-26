@@ -23,6 +23,12 @@ export function thresholdError(draft: ThresholdDraft, messages: Messages): strin
   return null;
 }
 
+export function manualPercentError(value: number, messages: Messages): string | null {
+  return Number.isFinite(value) && value >= 0 && value <= MAX_PERCENT
+    ? null
+    : messages.manual.invalid;
+}
+
 export function intervalLabel(minutes: number, messages: Messages): string {
   return messages.settings.interval(minutes);
 }

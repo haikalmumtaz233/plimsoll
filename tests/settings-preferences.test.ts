@@ -1,6 +1,6 @@
 import { en, id } from "../src/lib/i18n/messages";
 import { describe, expect, it } from "vitest";
-import { intervalLabel, thresholdError } from "../src/lib/settings/preferences";
+import { intervalLabel, manualPercentError, thresholdError } from "../src/lib/settings/preferences";
 
 describe("thresholdError", () => {
   it("accepts rising whole percentages", () => {
@@ -40,5 +40,19 @@ describe("indonesian settings text", () => {
     );
     expect(intervalLabel(1, id)).toBe("Setiap menit");
     expect(intervalLabel(10, id)).toBe("Setiap 10 menit");
+  });
+});
+
+describe("manualPercentError", () => {
+  it("accepts 0 to 100 including decimals", () => {
+    expect(manualPercentError(0, en)).toBeNull();
+    expect(manualPercentError(42.5, en)).toBeNull();
+    expect(manualPercentError(100, en)).toBeNull();
+  });
+
+  it("rejects values outside the range or not numbers", () => {
+    for (const value of [-1, 100.1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(manualPercentError(value, id)).toBe("Isi angka dari 0 sampai 100.");
+    }
   });
 });
