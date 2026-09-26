@@ -10,10 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Token history chart in the popup for the last 24 hours or the last 7 days, with a data table for screen readers and keyboard users.
 - Breakdown of token usage by model and by project for the same range as the history chart.
+- Settings panel with configurable alert levels for the tray and meters, and the refresh interval for accurate mode.
 
 ### Changed
 
 - The popup opens next to the tray icon instead of the center of the screen.
+- The accurate mode switch moved into Settings.
 
 ## [0.1.0] - 2026-09-26
 
