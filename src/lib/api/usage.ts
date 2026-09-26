@@ -53,9 +53,26 @@ export interface BreakdownsView {
   week: BreakdownView;
 }
 
+export interface ThresholdsView {
+  elevated: number;
+  high: number;
+  critical: number;
+}
+
+export interface PreferencesView {
+  thresholds: ThresholdsView;
+  pollMinutes: number;
+  pollChoices: number[];
+}
+
+export interface PreferencesInput extends ThresholdsView {
+  pollMinutes: number;
+}
+
 export interface UsageView {
   accurateMode: boolean;
   status: OAuthStatus;
+  preferences: PreferencesView;
   limits: LimitView[];
   fiveHour: TokenView;
   weekly: TokenView;
@@ -70,6 +87,10 @@ export function loadUsage(): Promise<UsageView> {
 
 export function setAccurateMode(enabled: boolean): Promise<UsageView> {
   return invoke<UsageView>("set_accurate_mode", { enabled });
+}
+
+export function savePreferences(preferences: PreferencesInput): Promise<UsageView> {
+  return invoke<UsageView>("set_preferences", { preferences });
 }
 
 export function onUsageUpdated(handler: (view: UsageView) => void): Promise<UnlistenFn> {
