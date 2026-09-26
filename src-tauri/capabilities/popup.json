@@ -10,6 +10,7 @@
     "core:event:allow-unlisten",
     "allow-usage-summary",
     "allow-set-accurate-mode",
-    "allow-set-preferences"
+    "allow-set-preferences",
+    "allow-set-manual-percent"
   ]
 }

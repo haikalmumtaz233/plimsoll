@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::app::runtime;
 use crate::app::view::UsageView;
+use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
 use crate::domain::severity::Thresholds;
 
@@ -17,6 +18,29 @@ pub enum CommandError {
     InvalidInterval,
     #[error("language must be system, en or id")]
     InvalidLanguage,
+    #[error("manual readings need a known limit and a percent from 0 to 100")]
+    InvalidManual,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ManualInput {
+    pub kind: String,
+    pub percent: Option<f64>,
+}
+
+impl ManualInput {
+    pub fn validate(&self) -> Result<(LimitKind, Option<Utilization>), CommandError> {
+        let kind = LimitKind::from_name(&self.kind).ok_or(CommandError::InvalidManual)?;
+        let utilization = match self.percent {
+            None => None,
+            Some(percent) if percent <= 100.0 => {
+                Some(Utilization::from_percent(percent).ok_or(CommandError::InvalidManual)?)
+            }
+            Some(_) => return Err(CommandError::InvalidManual),
+        };
+        Ok((kind, utilization))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -73,9 +97,19 @@ pub fn set_preferences<R: Runtime>(
     runtime::set_preferences(&app, preferences).ok_or(CommandError::Unavailable)
 }
 
+#[tauri::command(async)]
+#[allow(clippy::needless_pass_by_value)]
+pub fn set_manual_percent<R: Runtime>(
+    app: AppHandle<R>,
+    reading: ManualInput,
+) -> Result<UsageView, CommandError> {
+    let (kind, utilization) = reading.validate()?;
+    runtime::set_manual_reading(&app, kind, utilization).ok_or(CommandError::Unavailable)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CommandError, PreferencesInput};
+    use super::{CommandError, ManualInput, PreferencesInput};
     use crate::domain::preferences::PollInterval;
     use crate::domain::severity::Thresholds;
     use serde_json::json;
@@ -140,6 +174,34 @@ mod tests {
                 "{invalid}"
             );
         }
+    }
+
+    #[test]
+    fn manual_input_is_validated() {
+        let input = |kind: &str, percent: Option<f64>| ManualInput {
+            kind: kind.to_owned(),
+            percent,
+        };
+        assert!(input("five_hour", Some(42.5)).validate().is_ok());
+        assert!(input("seven_day", Some(0.0)).validate().is_ok());
+        assert!(input("seven_day", None).validate().is_ok());
+        for invalid in [
+            input("five_hour", Some(-1.0)),
+            input("five_hour", Some(100.5)),
+            input("five_hour", Some(f64::NAN)),
+            input("monthly", Some(10.0)),
+        ] {
+            assert!(matches!(
+                invalid.validate(),
+                Err(CommandError::InvalidManual)
+            ));
+        }
+        assert!(
+            serde_json::from_value::<ManualInput>(
+                json!({ "kind": "five_hour", "percent": 1, "extra": 1 })
+            )
+            .is_err()
+        );
     }
 
     #[test]

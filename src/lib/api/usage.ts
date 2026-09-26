@@ -31,6 +31,12 @@ export interface EstimateView {
   enteredAt: number | null;
 }
 
+export interface ManualView {
+  kind: LimitKind;
+  percent: number;
+  enteredAt: number;
+}
+
 export interface TokenView {
   tokens: number;
   windowStart: number | null;
@@ -97,6 +103,7 @@ export interface UsageView {
   preferences: PreferencesView;
   limits: LimitView[];
   estimates: EstimateView[];
+  manual: ManualView[];
   fiveHour: TokenView;
   weekly: TokenView;
   history: HistoryView;
@@ -114,6 +121,10 @@ export function setAccurateMode(enabled: boolean): Promise<UsageView> {
 
 export function savePreferences(preferences: PreferencesInput): Promise<UsageView> {
   return invoke<UsageView>("set_preferences", { preferences });
+}
+
+export function saveManualPercent(kind: LimitKind, percent: number | null): Promise<UsageView> {
+  return invoke<UsageView>("set_manual_percent", { reading: { kind, percent } });
 }
 
 export function onUsageUpdated(handler: (view: UsageView) => void): Promise<UnlistenFn> {

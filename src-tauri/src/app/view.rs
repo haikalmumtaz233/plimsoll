@@ -32,6 +32,14 @@ pub struct EstimateView {
     pub entered_at: Option<i64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManualView {
+    pub kind: &'static str,
+    pub percent: f64,
+    pub entered_at: i64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenView {
@@ -123,6 +131,7 @@ pub struct UsageView {
     pub preferences: PreferencesView,
     pub limits: Vec<LimitView>,
     pub estimates: Vec<EstimateView>,
+    pub manual: Vec<ManualView>,
     pub five_hour: TokenView,
     pub weekly: TokenView,
     pub history: HistoryView,
@@ -139,6 +148,15 @@ impl UsageView {
             preferences: preferences_view(report.preferences, language),
             limits: report.summary.limits.iter().map(limit_view).collect(),
             estimates: report.estimates.iter().map(estimate_view).collect(),
+            manual: report
+                .manual
+                .iter()
+                .map(|reading| ManualView {
+                    kind: reading.kind.name(),
+                    percent: reading.utilization.percent(),
+                    entered_at: reading.entered_at.unix_millis(),
+                })
+                .collect(),
             five_hour: token_view(report.summary.five_hour),
             weekly: token_view(report.summary.weekly),
             history: history_view(&report.summary.history),
@@ -260,13 +278,12 @@ mod tests {
 
     const NOW: Timestamp = Timestamp::from_unix_millis(1_790_300_000_000);
 
-    #[test]
-    fn serializes_camel_case_for_the_popup() {
-        let window = Window::starting_at(NOW - Span::hours(1), Span::FIVE_HOURS);
-        let report = Report {
+    fn sample_report(window: Window) -> Report {
+        Report {
             accurate_mode: true,
             status: OAuthStatus::Active,
             preferences: Preferences::default(),
+            manual: Vec::new(),
             estimates: vec![Estimate {
                 kind: LimitKind::SevenDay,
                 utilization: Utilization::from_percent(12.5).expect("valid percent"),
@@ -309,7 +326,13 @@ mod tests {
                     week: Breakdown::default(),
                 },
             },
-        };
+        }
+    }
+
+    #[test]
+    fn serializes_camel_case_for_the_popup() {
+        let window = Window::starting_at(NOW - Span::hours(1), Span::FIVE_HOURS);
+        let report = sample_report(window);
         let value =
             serde_json::to_value(UsageView::from_report(&report, Language::Indonesian, NOW))
                 .expect("json");
@@ -338,6 +361,7 @@ mod tests {
                     "enteredPercent": null,
                     "enteredAt": null
                 }],
+                "manual": [],
                 "fiveHour": {
                     "tokens": 6,
                     "windowStart": window.start().unix_millis(),

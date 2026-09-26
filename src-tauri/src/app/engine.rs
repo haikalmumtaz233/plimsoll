@@ -22,6 +22,7 @@ pub struct Report {
     pub preferences: Preferences,
     pub summary: UsageSummary,
     pub estimates: Vec<Estimate>,
+    pub manual: Vec<ManualReading>,
 }
 
 #[derive(Debug)]
@@ -117,11 +118,13 @@ impl Engine {
         };
         let events = self.database.events_in(summary::lookback(&limits, now))?;
         let summary = summary::summarize(limits, &events, now);
+        let manual = self.manual_readings(&summary, now)?;
         Ok(Report {
             accurate_mode,
             status: self.status,
             preferences: self.database.preferences()?,
-            estimates: self.estimates(&summary, now)?,
+            estimates: self.estimates(&summary, &manual, now)?,
+            manual,
             summary,
         })
     }
@@ -129,12 +132,12 @@ impl Engine {
     fn estimates(
         &self,
         summary: &UsageSummary,
+        manual: &[ManualReading],
         now: Timestamp,
     ) -> Result<Vec<Estimate>, DatabaseError> {
         if !summary.limits.is_empty() {
             return Ok(Vec::new());
         }
-        let manual = self.manual_readings(summary, now)?;
         let mut estimates = Vec::new();
         for (kind, window) in [
             (LimitKind::FiveHour, summary.five_hour),
@@ -442,6 +445,7 @@ mod tests {
         assert_eq!(report.estimates.len(), 1);
         assert!((report.estimates[0].utilization.percent() - 30.0).abs() < 1e-9);
         assert!(matches!(report.estimates[0].basis, Basis::Manual { .. }));
+        assert_eq!(report.manual.len(), 1);
 
         let later = NOW + Span::hours(5);
         assert!(engine.report(later).expect("report").estimates.is_empty());
