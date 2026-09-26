@@ -137,6 +137,7 @@ fn countdown(span: Span) -> String {
 #[cfg(test)]
 mod tests {
     use super::{TrayReading, compact_tokens, countdown, grouped_thousands};
+    use crate::domain::breakdown::Breakdowns;
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
@@ -175,6 +176,7 @@ mod tests {
                 start: NOW,
                 tokens: Vec::new(),
             },
+            breakdowns: Breakdowns::default(),
         }
     }
 
