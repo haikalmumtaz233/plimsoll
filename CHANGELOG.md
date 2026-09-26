@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- A confirmation that explains how accurate mode uses the Claude Code sign-in, and its risks, before the mode is turned on.
+
 ## [0.2.0] - 2026-09-26
 
 ### Added
