@@ -22,6 +22,12 @@ export interface LimitView {
   resetsAt: number | null;
 }
 
+export interface EstimateView {
+  kind: LimitKind;
+  percent: number;
+  samples: number;
+}
+
 export interface TokenView {
   tokens: number;
   windowStart: number | null;
@@ -87,6 +93,7 @@ export interface UsageView {
   status: OAuthStatus;
   preferences: PreferencesView;
   limits: LimitView[];
+  estimates: EstimateView[];
   fiveHour: TokenView;
   weekly: TokenView;
   history: HistoryView;

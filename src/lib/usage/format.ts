@@ -1,4 +1,4 @@
-import type { AlertView, LimitKind, OAuthStatus } from "../api/usage";
+import type { AlertView, EstimateView, LimitKind, OAuthStatus } from "../api/usage";
 import type { Messages } from "../i18n/messages";
 
 const MILLIS_PER_MINUTE = 60_000;
@@ -62,4 +62,15 @@ export function statusMessage(
 
 export function alertText(alert: AlertView): string {
   return `${alert.title}. ${alert.body}`;
+}
+
+export function estimateFor(
+  estimates: readonly EstimateView[],
+  kind: LimitKind,
+): EstimateView | undefined {
+  return estimates.find((estimate) => estimate.kind === kind);
+}
+
+export function estimateText(estimate: EstimateView, messages: Messages): string {
+  return messages.estimate(formatPercent(estimate.percent), estimate.samples);
 }

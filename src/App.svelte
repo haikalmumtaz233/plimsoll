@@ -17,7 +17,7 @@
     type UsageView,
   } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
-  import { alertText, statusMessage } from "./lib/usage/format";
+  import { alertText, estimateFor, statusMessage } from "./lib/usage/format";
   import { type HistoryRange } from "./lib/usage/history";
   import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
 
@@ -188,6 +188,7 @@
         usage={view.fiveHour}
         now={view.generatedAt}
         emptyText={messages.windows.noUsageFiveHour}
+        estimate={estimateFor(view.estimates, "five_hour")}
         {messages}
       />
       <TokenCard
@@ -196,6 +197,7 @@
         usage={view.weekly}
         now={view.generatedAt}
         emptyText={messages.windows.noUsageWeek}
+        estimate={estimateFor(view.estimates, "seven_day")}
         {messages}
       />
     {/if}
