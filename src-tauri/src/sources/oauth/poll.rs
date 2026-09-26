@@ -8,14 +8,18 @@ use crate::domain::limit::LimitSnapshot;
 
 pub type PollResult = Result<Vec<LimitSnapshot>, OAuthError>;
 
-pub async fn run<T, N, J, F>(source: &OAuthUsageSource<T>, now: N, mut jitter: J, mut on_result: F)
-where
+pub async fn run<T, N, J, F>(
+    source: &OAuthUsageSource<T>,
+    mut schedule: PollSchedule,
+    now: N,
+    mut jitter: J,
+    mut on_result: F,
+) where
     T: Transport,
     N: Fn() -> Timestamp,
     J: FnMut() -> Jitter,
     F: FnMut(PollResult) -> ControlFlow<()>,
 {
-    let mut schedule = PollSchedule::default();
     loop {
         let result = source.fetch(now()).await;
         let delay = match &result {
@@ -35,7 +39,7 @@ mod tests {
     use crate::domain::clock::Timestamp;
     use crate::sources::oauth::OAuthUsageSource;
     use crate::sources::oauth::fake::{FakeTransport, credentials_file, reply};
-    use crate::sources::oauth::schedule::Jitter;
+    use crate::sources::oauth::schedule::{Jitter, PollSchedule};
     use crate::sources::oauth::transport::Reply;
     use std::fs;
     use std::ops::ControlFlow;
@@ -66,6 +70,7 @@ mod tests {
         let mut polls = Vec::new();
         run(
             &source,
+            PollSchedule::default(),
             || Timestamp::from_unix_millis(0),
             || Jitter::NONE,
             |result| {

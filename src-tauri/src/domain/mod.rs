@@ -4,6 +4,7 @@ pub mod clock;
 pub mod history;
 pub mod limit;
 pub mod period;
+pub mod preferences;
 pub mod record;
 pub mod session;
 pub mod severity;

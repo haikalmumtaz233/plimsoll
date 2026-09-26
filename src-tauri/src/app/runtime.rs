@@ -19,7 +19,7 @@ use crate::error::AppError;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
 use crate::sources::oauth::poll::{self, PollResult};
-use crate::sources::oauth::schedule::Jitter;
+use crate::sources::oauth::schedule::{Jitter, PollSchedule};
 use crate::sources::oauth::transport::HttpsTransport;
 use crate::sources::oauth::{OAuthError, OAuthUsageSource};
 use crate::store::{Database, DatabaseError};
@@ -189,10 +189,16 @@ async fn poll_oauth<R: Runtime>(app: AppHandle<R>) {
         }
     };
     let source = OAuthUsageSource::new(transport, path);
-    poll::run(&source, clock::now, Jitter::random, |result| {
-        record(&app, &result);
-        ControlFlow::Continue(())
-    })
+    poll::run(
+        &source,
+        PollSchedule::default(),
+        clock::now,
+        Jitter::random,
+        |result| {
+            record(&app, &result);
+            ControlFlow::Continue(())
+        },
+    )
     .await;
 }
 
