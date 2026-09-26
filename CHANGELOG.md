@@ -9,4 +9,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - System tray icon with Open and Quit actions and a popup window.
+- Popup with the 5-hour and weekly limits, reset countdowns and a status line. Without accurate mode it shows token estimates from local Claude Code logs.
+- Opt-in accurate mode that reads the Claude Code sign-in on this PC to fetch official percentages, falling back to local estimates when it is unavailable.
 - Tray icon drawn as a sharp badge at 100 to 300 percent display scaling: the most used limit in percent, colored at 50, 80 and 95 percent, or tokens used when accurate mode is off. The tooltip lists each limit with its reset countdown.
