@@ -8,6 +8,7 @@ use super::poll::PollResult;
 #[serde(rename_all = "snake_case")]
 pub enum OAuthStatus {
     Disabled,
+    Pending,
     Active,
     SignedOut,
     TokenExpired,
@@ -107,6 +108,7 @@ mod tests {
             assert!(status.uses_fallback());
         }
         assert!(OAuthStatus::Disabled.uses_fallback());
+        assert!(OAuthStatus::Pending.uses_fallback());
     }
 
     #[test]
