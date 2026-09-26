@@ -29,6 +29,16 @@ export interface Messages {
   };
   tokens: (formatted: string, count: number) => string;
   estimate: (percent: string, samples: number) => string;
+  manualEstimate: (percent: string, entered: string, age: string) => string;
+  manual: {
+    title: string;
+    help: string;
+    save: string;
+    clear: string;
+    invalid: string;
+    failed: string;
+    entered: (percent: string, age: string) => string;
+  };
   windows: {
     fiveHour: string;
     week: string;
@@ -122,6 +132,17 @@ export const en: Messages = {
   tokens: (formatted, count) => `${formatted} ${count === 1 ? "token" : "tokens"}`,
   estimate: (percent, samples) =>
     `About ${percent} of the limit, estimated from ${String(samples)} past windows`,
+  manualEstimate: (percent, entered, age) =>
+    `About ${percent} of the limit, based on your entry of ${entered} ${age} ago`,
+  manual: {
+    title: "Manual percentage",
+    help: "When official data is unavailable, enter the percentage shown by /usage in Claude Code or on claude.ai. It is used until that limit could have reset.",
+    save: "Set",
+    clear: "Clear",
+    invalid: "Enter a number from 0 to 100.",
+    failed: "Could not save the manual percentage. Try again.",
+    entered: (percent, age) => `Entered ${percent}, ${age} ago`,
+  },
   windows: {
     fiveHour: "5-hour window",
     week: "This week",
@@ -229,6 +250,17 @@ export const id: Messages = {
   tokens: (formatted) => `${formatted} token`,
   estimate: (percent, samples) =>
     `Sekitar ${percent} dari limit, estimasi dari ${String(samples)} jendela sebelumnya`,
+  manualEstimate: (percent, entered, age) =>
+    `Sekitar ${percent} dari limit, dari isian manual ${entered} ${age} lalu`,
+  manual: {
+    title: "Persentase manual",
+    help: "Saat data resmi tidak tersedia, isi persentase yang ditampilkan /usage di Claude Code atau di claude.ai. Nilainya dipakai sampai limit tersebut mungkin sudah reset.",
+    save: "Atur",
+    clear: "Hapus",
+    invalid: "Isi angka dari 0 sampai 100.",
+    failed: "Gagal menyimpan persentase manual. Coba lagi.",
+    entered: (percent, age) => `Diisi ${percent}, ${age} lalu`,
+  },
   windows: {
     fiveHour: "Jendela 5 jam",
     week: "Minggu ini",

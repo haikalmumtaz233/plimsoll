@@ -1,9 +1,16 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { LanguageChoice, PreferencesInput, PreferencesView } from "../api/usage";
+  import type {
+    LanguageChoice,
+    LimitKind,
+    ManualView,
+    PreferencesInput,
+    PreferencesView,
+  } from "../api/usage";
   import type { Messages } from "../i18n/messages";
   import { intervalLabel, thresholdError } from "../settings/preferences";
   import AccurateModeToggle from "./AccurateModeToggle.svelte";
+  import ManualPercent from "./ManualPercent.svelte";
 
   interface Props {
     messages: Messages;
@@ -11,9 +18,21 @@
     accurateMode: boolean;
     onsave: (preferences: PreferencesInput) => Promise<boolean>;
     onaccuratechange: (enabled: boolean) => Promise<boolean>;
+    manual: readonly ManualView[];
+    now: number;
+    onmanualsave: (kind: LimitKind, percent: number | null) => Promise<boolean>;
   }
 
-  let { messages, preferences, accurateMode, onsave, onaccuratechange }: Props = $props();
+  let {
+    messages,
+    preferences,
+    accurateMode,
+    onsave,
+    onaccuratechange,
+    manual,
+    now,
+    onmanualsave,
+  }: Props = $props();
 
   const LANGUAGES: readonly LanguageChoice[] = ["system", "en", "id"];
 
@@ -110,6 +129,7 @@
       <p class="saved" role="status">{saved ? messages.settings.saved : ""}</p>
     </div>
   </form>
+  <ManualPercent {messages} {manual} {now} onsave={onmanualsave} />
   <AccurateModeToggle
     {messages}
     enabled={accurateMode}

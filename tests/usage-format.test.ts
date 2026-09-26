@@ -130,11 +130,30 @@ describe("estimates", () => {
   });
 
   it("describes estimates in both languages", () => {
-    expect(estimateText(estimate, en)).toBe(
+    expect(estimateText(estimate, 0, en)).toBe(
       "About 42% of the limit, estimated from 3 past windows",
     );
-    expect(estimateText(estimate, id)).toBe(
+    expect(estimateText(estimate, 0, id)).toBe(
       "Sekitar 42% dari limit, estimasi dari 3 jendela sebelumnya",
+    );
+  });
+});
+
+describe("manual estimates", () => {
+  it("mention the entered value and its age", () => {
+    const manual = {
+      kind: "five_hour" as const,
+      percent: 45.2,
+      source: "manual" as const,
+      samples: 0,
+      enteredPercent: 42,
+      enteredAt: 0,
+    };
+    expect(estimateText(manual, 20 * MINUTE, en)).toBe(
+      "About 45% of the limit, based on your entry of 42% 20m ago",
+    );
+    expect(estimateText(manual, 20 * MINUTE, id)).toBe(
+      "Sekitar 45% dari limit, dari isian manual 42% 20 menit lalu",
     );
   });
 });

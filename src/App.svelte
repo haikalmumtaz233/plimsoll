@@ -11,8 +11,10 @@
     loadUsage,
     onUsageAlert,
     onUsageUpdated,
+    saveManualPercent,
     savePreferences,
     setAccurateMode,
+    type LimitKind,
     type PreferencesInput,
     type UsageView,
   } from "./lib/api/usage";
@@ -112,6 +114,15 @@
     }
   }
 
+  async function changeManualPercent(kind: LimitKind, percent: number | null): Promise<boolean> {
+    try {
+      accept(await saveManualPercent(kind, percent));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function changePreferences(preferences: PreferencesInput): Promise<boolean> {
     try {
       accept(await savePreferences(preferences));
@@ -164,6 +175,9 @@
       accurateMode={view.accurateMode}
       onsave={changePreferences}
       onaccuratechange={changeAccurateMode}
+      manual={view.manual}
+      now={view.generatedAt}
+      onmanualsave={changeManualPercent}
     />
     {#if toggleError !== ""}
       <p class="error" role="alert">{toggleError}</p>
