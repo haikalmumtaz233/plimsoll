@@ -54,7 +54,7 @@ export function statusMessage(
   showingLimits: boolean,
 ): string {
   if (!accurateMode || status === "disabled") {
-    return "Estimated from local Claude Code logs. Chat, desktop and mobile usage are not included.";
+    return "Estimated from local Claude Code logs, without chat, desktop or mobile usage. Turn on accurate mode in Settings for official percentages.";
   }
   if (status === "active") {
     return "Official usage from your Claude account.";
