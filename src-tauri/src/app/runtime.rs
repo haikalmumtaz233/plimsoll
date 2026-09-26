@@ -14,6 +14,7 @@ use super::clock;
 use super::engine::{Engine, Report};
 use super::view::UsageView;
 use crate::domain::clock::Timestamp;
+use crate::domain::severity::Thresholds;
 use crate::error::AppError;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
@@ -208,7 +209,7 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
         eprintln!("failed to publish usage: {error}");
     }
     let reading = TrayReading::from_summary(&report.summary);
-    if let Err(error) = tray::show_reading(app, &reading, now) {
+    if let Err(error) = tray::show_reading(app, &reading, Thresholds::DEFAULT, now) {
         eprintln!("failed to update the tray icon: {error}");
     }
     Some(view)
