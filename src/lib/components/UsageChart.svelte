@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { HistoryView } from "../api/usage";
+  import SegmentedControl from "./SegmentedControl.svelte";
   import { formatTokens } from "../usage/format";
   import {
     DAYS_PER_WEEK_VIEW,
@@ -15,9 +16,10 @@
 
   interface Props {
     history: HistoryView;
+    range?: HistoryRange;
   }
 
-  let { history }: Props = $props();
+  let { history, range = $bindable("day") }: Props = $props();
 
   const WIDTH = 320;
   const HEIGHT = 132;
@@ -32,8 +34,11 @@
   const PLOT_WIDTH = WIDTH - LEFT - RIGHT;
   const PLOT_HEIGHT = HEIGHT - TOP - BOTTOM;
   const BASELINE = TOP + PLOT_HEIGHT;
+  const RANGES: readonly { value: HistoryRange; label: string }[] = [
+    { value: "day", label: "24h" },
+    { value: "week", label: "7d" },
+  ];
 
-  let range = $state<HistoryRange>("day");
   let active = $state<number | undefined>(undefined);
 
   const bars = $derived(
@@ -96,17 +101,15 @@
 <section class="chart" aria-labelledby="history-title">
   <div class="heading">
     <h2 class="title" id="history-title">Token history</h2>
-    <fieldset class="range">
-      <legend class="visually-hidden">Range</legend>
-      <label class="option">
-        <input type="radio" name="history-range" value="day" bind:group={range} />
-        <span>24h</span>
-      </label>
-      <label class="option">
-        <input type="radio" name="history-range" value="week" bind:group={range} />
-        <span>7d</span>
-      </label>
-    </fieldset>
+    <SegmentedControl
+      name="history-range"
+      legend="Range"
+      choices={RANGES}
+      value={range}
+      onchange={(next: HistoryRange) => {
+        range = next;
+      }}
+    />
   </div>
   <p class="readout" aria-hidden="true">{readout}</p>
   <svg
@@ -181,47 +184,6 @@
     color: var(--color-text-muted);
   }
 
-  .range {
-    display: flex;
-    gap: 0.125rem;
-    margin: 0;
-    padding: 0.125rem;
-    border: 0.0625rem solid var(--color-border);
-    border-radius: var(--radius-pill);
-  }
-
-  .option {
-    position: relative;
-    display: block;
-  }
-
-  .option input {
-    position: absolute;
-    inset: 0;
-    margin: 0;
-    opacity: 0;
-    cursor: pointer;
-  }
-
-  .option span {
-    display: block;
-    padding: 0.125rem 0.625rem;
-    border-radius: var(--radius-pill);
-    font-size: 0.8125rem;
-    color: var(--color-text-muted);
-  }
-
-  .option input:checked + span {
-    background: var(--color-selected);
-    color: var(--color-on-selected);
-    font-weight: 600;
-  }
-
-  .option input:focus-visible + span {
-    outline: 0.125rem solid var(--color-focus);
-    outline-offset: 0.125rem;
-  }
-
   .readout {
     margin: 0;
     font-size: 0.8125rem;
@@ -293,11 +255,6 @@
 
     .bar.active {
       fill: Highlight;
-    }
-
-    .option input:checked + span {
-      background: Highlight;
-      color: HighlightText;
     }
   }
 </style>
