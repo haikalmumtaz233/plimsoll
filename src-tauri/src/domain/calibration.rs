@@ -21,10 +21,21 @@ pub struct Sample {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Basis {
+    Calibrated {
+        samples: usize,
+    },
+    Manual {
+        entered_at: Timestamp,
+        entered: Utilization,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Estimate {
     pub kind: LimitKind,
     pub utilization: Utilization,
-    pub samples: usize,
+    pub basis: Basis,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

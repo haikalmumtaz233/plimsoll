@@ -5,6 +5,7 @@ pub mod calibration;
 pub mod clock;
 pub mod history;
 pub mod limit;
+pub mod manual;
 pub mod period;
 pub mod preferences;
 pub mod record;
