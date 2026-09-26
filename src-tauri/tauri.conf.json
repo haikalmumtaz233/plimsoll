@@ -16,7 +16,7 @@
         "label": "popup",
         "title": "Plimsoll",
         "width": 360,
-        "height": 480,
+        "height": 600,
         "visible": false,
         "resizable": false,
         "maximizable": false,
