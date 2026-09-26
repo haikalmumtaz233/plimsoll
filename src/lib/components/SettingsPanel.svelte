@@ -110,7 +110,12 @@
       <p class="saved" role="status">{saved ? messages.settings.saved : ""}</p>
     </div>
   </form>
-  <AccurateModeToggle {messages} enabled={accurateMode} onchange={onaccuratechange} />
+  <AccurateModeToggle
+    {messages}
+    enabled={accurateMode}
+    pollMinutes={preferences.pollMinutes}
+    onchange={onaccuratechange}
+  />
 </section>
 
 <style>
