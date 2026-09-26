@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - A confirmation that explains how accurate mode uses the Claude Code sign-in, and its risks, before the mode is turned on.
 - Experimental percent estimates when official data is not available, calibrated from past official readings and local token counts once at least three limit windows were seen.
+- Manual percentage in Settings for each limit, copied from /usage, used as a fallback until the limit could have reset and projected forward with calibrated usage.
 
 ## [0.2.0] - 2026-09-26
 
