@@ -19,6 +19,7 @@
   let high = $state(initial.thresholds.high);
   let critical = $state(initial.thresholds.critical);
   let pollMinutes = $state(initial.pollMinutes);
+  let language = $state(initial.language);
   let error = $state("");
   let saved = $state(false);
   let busy = $state(false);
@@ -38,7 +39,7 @@
     }
     error = "";
     busy = true;
-    const ok = await onsave({ elevated, high, critical, pollMinutes });
+    const ok = await onsave({ elevated, high, critical, pollMinutes, language });
     busy = false;
     if (ok) {
       saved = true;

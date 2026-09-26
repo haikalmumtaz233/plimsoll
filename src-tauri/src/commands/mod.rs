@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::app::runtime;
 use crate::app::view::UsageView;
-use crate::domain::preferences::{PollInterval, Preferences};
+use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
 use crate::domain::severity::Thresholds;
 
 #[derive(Debug, Error)]
@@ -15,15 +15,18 @@ pub enum CommandError {
     InvalidThresholds,
     #[error("poll interval must be one of the offered choices")]
     InvalidInterval,
+    #[error("language must be system, en or id")]
+    InvalidLanguage,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PreferencesInput {
     pub elevated: u8,
     pub high: u8,
     pub critical: u8,
     pub poll_minutes: u8,
+    pub language: String,
 }
 
 impl PreferencesInput {
@@ -33,6 +36,8 @@ impl PreferencesInput {
                 .ok_or(CommandError::InvalidThresholds)?,
             poll_interval: PollInterval::from_minutes(self.poll_minutes)
                 .ok_or(CommandError::InvalidInterval)?,
+            language: LanguageChoice::from_code(&self.language)
+                .ok_or(CommandError::InvalidLanguage)?,
         })
     }
 }
@@ -81,6 +86,7 @@ mod tests {
             high,
             critical,
             poll_minutes,
+            language: "id".to_owned(),
         }
     }
 
@@ -107,18 +113,27 @@ mod tests {
             input(50, 80, 95, 3).validate(),
             Err(CommandError::InvalidInterval)
         ));
+        let unknown = PreferencesInput {
+            language: "fr".to_owned(),
+            ..input(50, 80, 95, 1)
+        };
+        assert!(matches!(
+            unknown.validate(),
+            Err(CommandError::InvalidLanguage)
+        ));
     }
 
     #[test]
     fn frontend_payloads_are_strict() {
-        let valid = json!({ "elevated": 50, "high": 80, "critical": 95, "pollMinutes": 1 });
+        let valid = json!({ "elevated": 50, "high": 80, "critical": 95, "pollMinutes": 1, "language": "en" });
         assert!(serde_json::from_value::<PreferencesInput>(valid).is_ok());
         for invalid in [
             json!({ "elevated": 50, "high": 80, "critical": 95 }),
-            json!({ "elevated": -1, "high": 80, "critical": 95, "pollMinutes": 1 }),
-            json!({ "elevated": 50.5, "high": 80, "critical": 95, "pollMinutes": 1 }),
-            json!({ "elevated": 50, "high": 80, "critical": 300, "pollMinutes": 1 }),
-            json!({ "elevated": 50, "high": 80, "critical": 95, "pollMinutes": 1, "extra": true }),
+            json!({ "elevated": 50, "high": 80, "critical": 95, "pollMinutes": 1 }),
+            json!({ "elevated": -1, "high": 80, "critical": 95, "pollMinutes": 1, "language": "en" }),
+            json!({ "elevated": 50.5, "high": 80, "critical": 95, "pollMinutes": 1, "language": "en" }),
+            json!({ "elevated": 50, "high": 80, "critical": 300, "pollMinutes": 1, "language": "en" }),
+            json!({ "elevated": 50, "high": 80, "critical": 95, "pollMinutes": 1, "language": "en", "extra": true }),
         ] {
             assert!(
                 serde_json::from_value::<PreferencesInput>(invalid.clone()).is_err(),

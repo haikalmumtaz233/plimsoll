@@ -60,14 +60,18 @@ export interface ThresholdsView {
   critical: number;
 }
 
+export type LanguageChoice = "system" | "en" | "id";
+
 export interface PreferencesView {
   thresholds: ThresholdsView;
   pollMinutes: number;
   pollChoices: number[];
+  language: LanguageChoice;
 }
 
 export interface PreferencesInput extends ThresholdsView {
   pollMinutes: number;
+  language: LanguageChoice;
 }
 
 export interface AlertView {
