@@ -1,4 +1,5 @@
 use super::aggregate::totals_in;
+use super::breakdown::{self, Breakdowns};
 use super::clock::{Span, Timestamp};
 use super::history::{self, HourlyHistory};
 use super::limit::{LimitKind, LimitSnapshot};
@@ -23,6 +24,7 @@ pub struct UsageSummary {
     pub five_hour: TokenWindow,
     pub weekly: TokenWindow,
     pub history: HourlyHistory,
+    pub breakdowns: Breakdowns,
 }
 
 #[must_use]
@@ -46,6 +48,7 @@ pub fn summarize(
         five_hour: tokens_in(five_hour, events),
         weekly: tokens_in(Some(weekly), events),
         history: history::hourly(events, now),
+        breakdowns: breakdown::recent(events, now),
         limits,
     }
 }
@@ -129,6 +132,7 @@ mod tests {
         );
         assert_eq!(summary.five_hour.tokens.output, 110);
         assert_eq!(summary.history.tokens.iter().sum::<u64>(), 111);
+        assert_eq!(summary.breakdowns.week.models.top.len(), 1);
         assert_eq!(
             summary.weekly.window,
             Some(weekly_containing(DEFAULT_WEEKLY_ANCHOR, NOW))

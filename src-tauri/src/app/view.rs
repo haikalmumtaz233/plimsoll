@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use super::engine::Report;
+use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking};
 use crate::domain::clock::Timestamp;
 use crate::domain::history::{BUCKET, HourlyHistory};
 use crate::domain::limit::LimitSnapshot;
@@ -32,6 +33,34 @@ pub struct HistoryView {
     pub tokens: Vec<u64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShareView {
+    pub name: String,
+    pub tokens: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RankingView {
+    pub top: Vec<ShareView>,
+    pub other: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BreakdownView {
+    pub models: RankingView,
+    pub projects: RankingView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BreakdownsView {
+    pub day: BreakdownView,
+    pub week: BreakdownView,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageView {
@@ -41,6 +70,7 @@ pub struct UsageView {
     pub five_hour: TokenView,
     pub weekly: TokenView,
     pub history: HistoryView,
+    pub breakdown: BreakdownsView,
     pub generated_at: i64,
 }
 
@@ -54,6 +84,7 @@ impl UsageView {
             five_hour: token_view(report.summary.five_hour),
             weekly: token_view(report.summary.weekly),
             history: history_view(&report.summary.history),
+            breakdown: breakdowns_view(&report.summary.breakdowns),
             generated_at: now.unix_millis(),
         }
     }
@@ -64,6 +95,34 @@ fn limit_view(limit: &LimitSnapshot) -> LimitView {
         kind: limit.kind.name(),
         percent: limit.utilization.percent(),
         resets_at: limit.resets_at.map(Timestamp::unix_millis),
+    }
+}
+
+fn breakdowns_view(breakdowns: &Breakdowns) -> BreakdownsView {
+    BreakdownsView {
+        day: breakdown_view(&breakdowns.day),
+        week: breakdown_view(&breakdowns.week),
+    }
+}
+
+fn breakdown_view(breakdown: &Breakdown) -> BreakdownView {
+    BreakdownView {
+        models: ranking_view(&breakdown.models),
+        projects: ranking_view(&breakdown.projects),
+    }
+}
+
+fn ranking_view(ranking: &Ranking) -> RankingView {
+    RankingView {
+        top: ranking
+            .top
+            .iter()
+            .map(|share| ShareView {
+                name: share.name.clone(),
+                tokens: share.tokens,
+            })
+            .collect(),
+        other: ranking.other,
     }
 }
 
@@ -91,6 +150,7 @@ fn token_view(window: TokenWindow) -> TokenView {
 mod tests {
     use super::UsageView;
     use crate::app::engine::Report;
+    use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking, Share};
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
@@ -131,6 +191,19 @@ mod tests {
                     start: NOW,
                     tokens: vec![0, 7],
                 },
+                breakdowns: Breakdowns {
+                    day: Breakdown {
+                        models: Ranking {
+                            top: vec![Share {
+                                name: "claude-opus-5".to_owned(),
+                                tokens: 6,
+                            }],
+                            other: 1,
+                        },
+                        projects: Ranking::default(),
+                    },
+                    week: Breakdown::default(),
+                },
             },
         };
         let value = serde_json::to_value(UsageView::from_report(&report, NOW)).expect("json");
@@ -154,6 +227,16 @@ mod tests {
                     "start": NOW.unix_millis(),
                     "bucketMillis": 3_600_000,
                     "tokens": [0, 7]
+                },
+                "breakdown": {
+                    "day": {
+                        "models": { "top": [{ "name": "claude-opus-5", "tokens": 6 }], "other": 1 },
+                        "projects": { "top": [], "other": 0 }
+                    },
+                    "week": {
+                        "models": { "top": [], "other": 0 },
+                        "projects": { "top": [], "other": 0 }
+                    }
                 },
                 "generatedAt": NOW.unix_millis()
             })
