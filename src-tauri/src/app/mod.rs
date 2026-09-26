@@ -3,6 +3,7 @@ pub mod engine;
 pub mod runtime;
 pub mod view;
 
+use crate::commands;
 use crate::error::AppError;
 use crate::tray;
 
@@ -13,6 +14,10 @@ pub fn run() -> Result<(), AppError> {
             runtime::start(app.handle())?;
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            commands::usage_summary,
+            commands::set_accurate_mode
+        ])
         .run(tauri::generate_context!())?;
     Ok(())
 }
