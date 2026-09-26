@@ -15,7 +15,7 @@ use super::view::{AlertView, UsageView};
 use super::{clock, locale};
 use crate::domain::alerts::Alert;
 use crate::domain::clock::Timestamp;
-use crate::domain::preferences::Preferences;
+use crate::domain::preferences::{Language, Preferences};
 use crate::error::AppError;
 use crate::i18n::Text;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
@@ -40,6 +40,7 @@ struct Shared {
     poller: Mutex<Option<JoinHandle<()>>>,
     watcher: Mutex<Option<RecommendedWatcher>>,
     refresh: Sender<()>,
+    menu_language: Mutex<Option<Language>>,
 }
 
 pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
@@ -54,6 +55,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         poller: Mutex::new(None),
         watcher: Mutex::new(None),
         refresh,
+        menu_language: Mutex::new(None),
     });
     let root = jsonl::projects_root();
     if let Some(root) = &root {
@@ -252,6 +254,7 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     if let Err(error) = app.emit(USAGE_EVENT, &view) {
         eprintln!("failed to publish usage: {error}");
     }
+    apply_menu_language(app, language);
     let reading = TrayReading::from_summary(&report.summary);
     if let Err(error) = tray::show_reading(
         app,
@@ -263,6 +266,23 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
         eprintln!("failed to update the tray icon: {error}");
     }
     Some(view)
+}
+
+fn apply_menu_language<R: Runtime>(app: &AppHandle<R>, language: Language) {
+    let Some(shared) = app.try_state::<Shared>() else {
+        return;
+    };
+    let mut applied = shared
+        .menu_language
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    if *applied == Some(language) {
+        return;
+    }
+    match tray::set_language(app, language) {
+        Ok(()) => *applied = Some(language),
+        Err(error) => eprintln!("failed to translate the tray menu: {error}"),
+    }
 }
 
 fn report<R: Runtime>(app: &AppHandle<R>, now: Timestamp) -> Option<Report> {
