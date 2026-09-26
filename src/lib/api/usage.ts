@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export const USAGE_EVENT = "usage://updated";
+export const ALERT_EVENT = "usage://alert";
 
 export type OAuthStatus =
   | "disabled"
@@ -69,6 +70,13 @@ export interface PreferencesInput extends ThresholdsView {
   pollMinutes: number;
 }
 
+export interface AlertView {
+  kind: LimitKind;
+  severity: "elevated" | "high" | "critical";
+  title: string;
+  body: string;
+}
+
 export interface UsageView {
   accurateMode: boolean;
   status: OAuthStatus;
@@ -95,6 +103,12 @@ export function savePreferences(preferences: PreferencesInput): Promise<UsageVie
 
 export function onUsageUpdated(handler: (view: UsageView) => void): Promise<UnlistenFn> {
   return listen<UsageView>(USAGE_EVENT, (event) => {
+    handler(event.payload);
+  });
+}
+
+export function onUsageAlert(handler: (alert: AlertView) => void): Promise<UnlistenFn> {
+  return listen<AlertView>(ALERT_EVENT, (event) => {
     handler(event.payload);
   });
 }

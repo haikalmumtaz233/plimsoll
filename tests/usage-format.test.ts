@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  alertText,
   formatCountdown,
   formatPercent,
   formatTokens,
@@ -79,5 +80,18 @@ describe("statusMessage", () => {
     expect(statusMessage(true, "retrying", true)).toBe(
       "Could not reach Claude. Retrying soon. Showing the last official reading.",
     );
+  });
+});
+
+describe("alertText", () => {
+  it("joins the title and body into one announcement", () => {
+    expect(
+      alertText({
+        kind: "five_hour",
+        severity: "high",
+        title: "5-hour limit at 82%",
+        body: "Past your high level. Resets in 2h 15m.",
+      }),
+    ).toBe("5-hour limit at 82%. Past your high level. Resets in 2h 15m.");
   });
 });

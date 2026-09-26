@@ -9,6 +9,7 @@
   import { hidePopup, readAppVersion } from "./lib/api/app";
   import {
     loadUsage,
+    onUsageAlert,
     onUsageUpdated,
     savePreferences,
     setAccurateMode,
@@ -16,7 +17,7 @@
     type UsageView,
   } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
-  import { statusMessage } from "./lib/usage/format";
+  import { alertText, statusMessage } from "./lib/usage/format";
   import { rangeName, type HistoryRange } from "./lib/usage/history";
 
   let version = $state<string | undefined>(undefined);
@@ -25,6 +26,7 @@
   let toggleError = $state("");
   let range = $state<HistoryRange>("day");
   let settingsOpen = $state(false);
+  let announcement = $state("");
 
   function accept(next: UsageView) {
     if (view === undefined || next.generatedAt >= view.generatedAt) {
@@ -60,6 +62,28 @@
       .then(accept)
       .catch(() => {
         loadFailed = true;
+      });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  });
+
+  $effect(() => {
+    let unlisten: UnlistenFn | undefined;
+    let disposed = false;
+    onUsageAlert((alert) => {
+      announcement = alertText(alert);
+    })
+      .then((stop) => {
+        if (disposed) {
+          stop();
+        } else {
+          unlisten = stop;
+        }
+      })
+      .catch(() => {
+        announcement = "";
       });
     return () => {
       disposed = true;
@@ -104,6 +128,20 @@
       settingsOpen = !settingsOpen;
     }}
   />
+  <div class="announcement" class:active={announcement !== ""} role="alert">
+    {#if announcement !== ""}
+      <p class="announcement-text">{announcement}</p>
+      <button
+        type="button"
+        class="dismiss"
+        onclick={() => {
+          announcement = "";
+        }}
+      >
+        Dismiss
+      </button>
+    {/if}
+  </div>
   {#if view === undefined}
     <p class="status" role="status">
       {loadFailed ? "Usage is unavailable right now." : "Loading usage…"}
@@ -148,6 +186,38 @@
 </main>
 
 <style>
+  .announcement {
+    position: absolute;
+  }
+
+  .announcement.active {
+    position: static;
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: 0.0625rem solid var(--color-danger);
+    border-radius: var(--radius-md);
+  }
+
+  .announcement-text {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  .dismiss {
+    flex-shrink: 0;
+    padding: 0 var(--space-2);
+    font: inherit;
+    font-size: 0.8125rem;
+    color: var(--color-text);
+    background: transparent;
+    border: 0.0625rem solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+  }
+
   .popup {
     display: grid;
     gap: var(--space-4);
