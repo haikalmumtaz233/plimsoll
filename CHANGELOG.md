@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The popup opens next to the tray icon instead of the center of the screen.
 - The accurate mode switch moved into Settings.
 
+### Fixed
+
+- Selected options, the Save button and limit meters stay readable in Windows contrast themes.
+
 ## [0.1.0] - 2026-09-26
 
 ### Added
