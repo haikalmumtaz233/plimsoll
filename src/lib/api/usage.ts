@@ -33,6 +33,26 @@ export interface HistoryView {
   tokens: number[];
 }
 
+export interface ShareView {
+  name: string;
+  tokens: number;
+}
+
+export interface RankingView {
+  top: ShareView[];
+  other: number;
+}
+
+export interface BreakdownView {
+  models: RankingView;
+  projects: RankingView;
+}
+
+export interface BreakdownsView {
+  day: BreakdownView;
+  week: BreakdownView;
+}
+
 export interface UsageView {
   accurateMode: boolean;
   status: OAuthStatus;
@@ -40,6 +60,7 @@ export interface UsageView {
   fiveHour: TokenView;
   weekly: TokenView;
   history: HistoryView;
+  breakdown: BreakdownsView;
   generatedAt: number;
 }
 
