@@ -12,7 +12,8 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use super::clock;
 use super::engine::{Engine, Report};
-use super::view::UsageView;
+use super::view::{AlertView, UsageView};
+use crate::domain::alerts::Alert;
 use crate::domain::clock::Timestamp;
 use crate::domain::preferences::Preferences;
 use crate::error::AppError;
@@ -23,9 +24,11 @@ use crate::sources::oauth::schedule::{Jitter, PollSchedule};
 use crate::sources::oauth::transport::HttpsTransport;
 use crate::sources::oauth::{OAuthError, OAuthUsageSource};
 use crate::store::{Database, DatabaseError};
+use crate::toast;
 use crate::tray::{self, reading::TrayReading};
 
 pub const USAGE_EVENT: &str = "usage://updated";
+pub const ALERT_EVENT: &str = "usage://alert";
 
 const DATABASE_FILE: &str = "plimsoll.sqlite";
 const TICK: Duration = Duration::from_secs(60);
@@ -214,8 +217,26 @@ async fn poll_oauth<R: Runtime>(app: AppHandle<R>, schedule: PollSchedule) {
 }
 
 fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
-    with_engine(app, |engine| engine.record_oauth(result, clock::now()));
+    let now = clock::now();
+    let alerts = with_engine(app, |engine| {
+        engine.record_oauth(result, now)?;
+        engine.take_alerts(now)
+    })
+    .unwrap_or_default();
     publish(app);
+    for alert in &alerts {
+        announce(app, alert, now);
+    }
+}
+
+fn announce<R: Runtime>(app: &AppHandle<R>, alert: &Alert, now: Timestamp) {
+    let message = toast::message(alert, now);
+    if let Err(error) = toast::show(app, &message) {
+        eprintln!("failed to show a notification: {error}");
+    }
+    if let Err(error) = app.emit(ALERT_EVENT, AlertView::new(alert, message)) {
+        eprintln!("failed to publish an alert: {error}");
+    }
 }
 
 fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {

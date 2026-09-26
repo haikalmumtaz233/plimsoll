@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::domain::alerts::{self, Alert};
 use crate::domain::clock::Timestamp;
 use crate::domain::limit::LimitSnapshot;
 use crate::domain::preferences::Preferences;
@@ -84,6 +85,19 @@ impl Engine {
         Ok(())
     }
 
+    pub fn take_alerts(&mut self, now: Timestamp) -> Result<Vec<Alert>, DatabaseError> {
+        if !self.accurate_mode()? {
+            return Ok(Vec::new());
+        }
+        let limits = self.current_limits(now)?;
+        let thresholds = self.database.preferences()?.thresholds;
+        let alerts = alerts::crossings(&limits, thresholds, &self.database.notified_alerts()?);
+        for alert in &alerts {
+            self.database.record_notified(alert.notified())?;
+        }
+        Ok(alerts)
+    }
+
     pub fn prune(&self, now: Timestamp) -> Result<usize, DatabaseError> {
         self.database.prune_expired(now)
     }
@@ -122,7 +136,7 @@ mod tests {
     use crate::domain::limit::{LimitKind, LimitSnapshot, STALE_AFTER, Utilization};
     use crate::domain::preferences::{PollInterval, Preferences};
     use crate::domain::record::{EventKey, KeyedEvent, UsageEvent};
-    use crate::domain::severity::Thresholds;
+    use crate::domain::severity::{Severity, Thresholds};
     use crate::domain::tokens::TokenCounts;
     use crate::sources::oauth::OAuthError;
     use crate::sources::oauth::status::OAuthStatus;
@@ -237,6 +251,32 @@ mod tests {
         assert!(!report.accurate_mode);
         assert_eq!(report.status, OAuthStatus::Disabled);
         assert!(report.summary.limits.is_empty());
+    }
+
+    #[test]
+    fn alerts_fire_once_per_level_while_accurate() {
+        let mut engine = engine();
+        engine
+            .record_oauth(&Ok(vec![five_hour(85.0)]), NOW)
+            .expect("record");
+        assert!(engine.take_alerts(NOW).expect("alerts").is_empty());
+
+        engine.set_accurate_mode(true).expect("opt in");
+        engine
+            .record_oauth(&Ok(vec![five_hour(85.0)]), NOW)
+            .expect("record");
+        let alerts = engine.take_alerts(NOW).expect("alerts");
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].severity, Severity::High);
+        assert!(engine.take_alerts(NOW).expect("alerts").is_empty());
+
+        engine
+            .record_oauth(&Ok(vec![five_hour(97.0)]), NOW)
+            .expect("record");
+        assert_eq!(
+            engine.take_alerts(NOW).expect("alerts")[0].severity,
+            Severity::Critical
+        );
     }
 
     #[test]
