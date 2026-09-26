@@ -13,7 +13,7 @@ use tauri::{AppHandle, Runtime};
 
 use crate::app::{clock, locale};
 use crate::domain::clock::Timestamp;
-use crate::domain::preferences::LanguageChoice;
+use crate::domain::preferences::{Language, LanguageChoice};
 use crate::domain::severity::Thresholds;
 use crate::error::AppError;
 use crate::i18n::Text;
@@ -25,13 +25,12 @@ const DEFAULT_SCALE: f64 = 1.0;
 
 pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let idle = TrayReading::Idle;
-    let open = menu_item(app, MenuAction::Open)?;
-    let quit = menu_item(app, MenuAction::Quit)?;
-    let menu = Menu::with_items(app, &[&open, &quit])?;
+    let language = locale::resolve(LanguageChoice::System);
+    let menu = build_menu(app, language)?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon_image(app, &idle, Thresholds::DEFAULT)?)
-        .tooltip(idle.tooltip(locale::text(LanguageChoice::System), clock::now()))
+        .tooltip(idle.tooltip(Text::new(language), clock::now()))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| handle_menu_event(app, &event))
@@ -72,11 +71,27 @@ fn icon_image<R: Runtime>(
     Ok(Image::new_owned(bitmap.rgba, bitmap.size, bitmap.size))
 }
 
-fn menu_item<R: Runtime>(app: &AppHandle<R>, action: MenuAction) -> Result<MenuItem<R>, AppError> {
+pub fn set_language<R: Runtime>(app: &AppHandle<R>, language: Language) -> Result<(), AppError> {
+    let tray = app.tray_by_id(TRAY_ID).ok_or(AppError::MissingTray)?;
+    tray.set_menu(Some(build_menu(app, language)?))?;
+    Ok(())
+}
+
+fn build_menu<R: Runtime>(app: &AppHandle<R>, language: Language) -> Result<Menu<R>, AppError> {
+    let open = menu_item(app, MenuAction::Open, language)?;
+    let quit = menu_item(app, MenuAction::Quit, language)?;
+    Ok(Menu::with_items(app, &[&open, &quit])?)
+}
+
+fn menu_item<R: Runtime>(
+    app: &AppHandle<R>,
+    action: MenuAction,
+    language: Language,
+) -> Result<MenuItem<R>, AppError> {
     Ok(MenuItem::with_id(
         app,
         action.id(),
-        action.label(),
+        action.label(language),
         true,
         None::<&str>,
     )?)
