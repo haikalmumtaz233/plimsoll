@@ -74,6 +74,7 @@
 
   .heading {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
@@ -95,13 +96,15 @@
   }
 
   .row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
     gap: 0.125rem var(--space-2);
     font-size: 0.8125rem;
   }
 
   .label {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -113,7 +116,7 @@
   }
 
   .share {
-    grid-column: 1 / -1;
+    flex-basis: 100%;
     display: block;
     width: 100%;
     height: 0.25rem;
