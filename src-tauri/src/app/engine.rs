@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::domain::clock::Timestamp;
 use crate::domain::limit::LimitSnapshot;
+use crate::domain::preferences::Preferences;
 use crate::domain::record::KeyedEvent;
 use crate::domain::summary::{self, UsageSummary};
 use crate::sources::oauth::poll::PollResult;
@@ -12,6 +13,7 @@ use crate::store::{Database, DatabaseError};
 pub struct Report {
     pub accurate_mode: bool,
     pub status: OAuthStatus,
+    pub preferences: Preferences,
     pub summary: UsageSummary,
 }
 
@@ -43,6 +45,14 @@ impl Engine {
             OAuthStatus::Disabled
         };
         Ok(())
+    }
+
+    pub fn preferences(&self) -> Result<Preferences, DatabaseError> {
+        self.database.preferences()
+    }
+
+    pub fn set_preferences(&mut self, preferences: Preferences) -> Result<(), DatabaseError> {
+        self.database.set_preferences(preferences)
     }
 
     pub fn offsets(&self) -> Result<Vec<(PathBuf, u64)>, DatabaseError> {
@@ -89,6 +99,7 @@ impl Engine {
         Ok(Report {
             accurate_mode,
             status: self.status,
+            preferences: self.database.preferences()?,
             summary: summary::summarize(limits, &events, now),
         })
     }
@@ -109,7 +120,9 @@ mod tests {
     use super::Engine;
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::limit::{LimitKind, LimitSnapshot, STALE_AFTER, Utilization};
+    use crate::domain::preferences::{PollInterval, Preferences};
     use crate::domain::record::{EventKey, KeyedEvent, UsageEvent};
+    use crate::domain::severity::Thresholds;
     use crate::domain::tokens::TokenCounts;
     use crate::sources::oauth::OAuthError;
     use crate::sources::oauth::status::OAuthStatus;
@@ -224,6 +237,18 @@ mod tests {
         assert!(!report.accurate_mode);
         assert_eq!(report.status, OAuthStatus::Disabled);
         assert!(report.summary.limits.is_empty());
+    }
+
+    #[test]
+    fn preferences_are_saved_and_reported() {
+        let mut engine = engine();
+        assert_eq!(engine.preferences().expect("read"), Preferences::default());
+        let preferences = Preferences {
+            thresholds: Thresholds::new(30, 60, 90).expect("valid thresholds"),
+            poll_interval: PollInterval::from_minutes(2).expect("valid interval"),
+        };
+        engine.set_preferences(preferences).expect("write");
+        assert_eq!(engine.report(NOW).expect("report").preferences, preferences);
     }
 
     #[test]

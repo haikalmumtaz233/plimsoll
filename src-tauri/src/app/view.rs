@@ -6,6 +6,7 @@ use crate::domain::clock::Timestamp;
 use crate::domain::history::{BUCKET, HourlyHistory};
 use crate::domain::limit::LimitSnapshot;
 use crate::domain::period::Window;
+use crate::domain::preferences::{PollInterval, Preferences};
 use crate::domain::summary::TokenWindow;
 use crate::sources::oauth::status::OAuthStatus;
 
@@ -61,11 +62,28 @@ pub struct BreakdownsView {
     pub week: BreakdownView,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThresholdsView {
+    pub elevated: u8,
+    pub high: u8,
+    pub critical: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreferencesView {
+    pub thresholds: ThresholdsView,
+    pub poll_minutes: u8,
+    pub poll_choices: Vec<u8>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageView {
     pub accurate_mode: bool,
     pub status: OAuthStatus,
+    pub preferences: PreferencesView,
     pub limits: Vec<LimitView>,
     pub five_hour: TokenView,
     pub weekly: TokenView,
@@ -80,6 +98,7 @@ impl UsageView {
         Self {
             accurate_mode: report.accurate_mode,
             status: report.status,
+            preferences: preferences_view(report.preferences),
             limits: report.summary.limits.iter().map(limit_view).collect(),
             five_hour: token_view(report.summary.five_hour),
             weekly: token_view(report.summary.weekly),
@@ -95,6 +114,19 @@ fn limit_view(limit: &LimitSnapshot) -> LimitView {
         kind: limit.kind.name(),
         percent: limit.utilization.percent(),
         resets_at: limit.resets_at.map(Timestamp::unix_millis),
+    }
+}
+
+fn preferences_view(preferences: Preferences) -> PreferencesView {
+    let thresholds = preferences.thresholds;
+    PreferencesView {
+        thresholds: ThresholdsView {
+            elevated: thresholds.elevated(),
+            high: thresholds.high(),
+            critical: thresholds.critical(),
+        },
+        poll_minutes: preferences.poll_interval.minutes(),
+        poll_choices: PollInterval::CHOICES.to_vec(),
     }
 }
 
@@ -155,6 +187,7 @@ mod tests {
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::period::Window;
+    use crate::domain::preferences::Preferences;
     use crate::domain::summary::{TokenWindow, UsageSummary};
     use crate::domain::tokens::TokenCounts;
     use crate::sources::oauth::status::OAuthStatus;
@@ -168,6 +201,7 @@ mod tests {
         let report = Report {
             accurate_mode: true,
             status: OAuthStatus::Active,
+            preferences: Preferences::default(),
             summary: UsageSummary {
                 limits: vec![LimitSnapshot {
                     kind: LimitKind::FiveHour,
@@ -212,6 +246,11 @@ mod tests {
             json!({
                 "accurateMode": true,
                 "status": "active",
+                "preferences": {
+                    "thresholds": { "elevated": 50, "high": 80, "critical": 95 },
+                    "pollMinutes": 1,
+                    "pollChoices": [1, 2, 5, 10]
+                },
                 "limits": [{
                     "kind": "five_hour",
                     "percent": 42.5,

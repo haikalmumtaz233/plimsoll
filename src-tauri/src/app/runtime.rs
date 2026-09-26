@@ -14,7 +14,7 @@ use super::clock;
 use super::engine::{Engine, Report};
 use super::view::UsageView;
 use crate::domain::clock::Timestamp;
-use crate::domain::severity::Thresholds;
+use crate::domain::preferences::Preferences;
 use crate::error::AppError;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
@@ -73,6 +73,20 @@ pub fn set_accurate_mode<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Optio
         start_poller(app);
     } else {
         stop_poller(app);
+    }
+    publish(app)
+}
+
+pub fn set_preferences<R: Runtime>(
+    app: &AppHandle<R>,
+    preferences: Preferences,
+) -> Option<UsageView> {
+    let accurate_mode = with_engine(app, |engine| {
+        engine.set_preferences(preferences)?;
+        engine.accurate_mode()
+    })?;
+    if accurate_mode {
+        start_poller(app);
     }
     publish(app)
 }
@@ -155,9 +169,12 @@ fn start_poller<R: Runtime>(app: &AppHandle<R>) {
     if let Some(previous) = poller.take() {
         previous.abort();
     }
+    let interval = with_engine(app, |engine| engine.preferences())
+        .unwrap_or_default()
+        .poll_interval;
     let handle = app.clone();
     *poller = Some(async_runtime::spawn(async move {
-        poll_oauth(handle).await;
+        poll_oauth(handle, PollSchedule::new(interval.duration())).await;
     }));
 }
 
@@ -173,7 +190,7 @@ fn stop_poller<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-async fn poll_oauth<R: Runtime>(app: AppHandle<R>) {
+async fn poll_oauth<R: Runtime>(app: AppHandle<R>, schedule: PollSchedule) {
     let Some(path) = credentials::credentials_path() else {
         record(
             &app,
@@ -189,16 +206,10 @@ async fn poll_oauth<R: Runtime>(app: AppHandle<R>) {
         }
     };
     let source = OAuthUsageSource::new(transport, path);
-    poll::run(
-        &source,
-        PollSchedule::default(),
-        clock::now,
-        Jitter::random,
-        |result| {
-            record(&app, &result);
-            ControlFlow::Continue(())
-        },
-    )
+    poll::run(&source, schedule, clock::now, Jitter::random, |result| {
+        record(&app, &result);
+        ControlFlow::Continue(())
+    })
     .await;
 }
 
@@ -215,7 +226,7 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
         eprintln!("failed to publish usage: {error}");
     }
     let reading = TrayReading::from_summary(&report.summary);
-    if let Err(error) = tray::show_reading(app, &reading, Thresholds::DEFAULT, now) {
+    if let Err(error) = tray::show_reading(app, &reading, report.preferences.thresholds, now) {
         eprintln!("failed to update the tray icon: {error}");
     }
     Some(view)
