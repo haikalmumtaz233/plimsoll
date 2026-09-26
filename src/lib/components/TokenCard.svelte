@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { TokenView } from "../api/usage";
+  import type { EstimateView, TokenView } from "../api/usage";
   import type { Messages } from "../i18n/messages";
-  import { formatTokens, resetText } from "../usage/format";
+  import { estimateText, formatTokens, resetText } from "../usage/format";
 
   interface Props {
     messages: Messages;
@@ -10,9 +10,10 @@
     usage: TokenView;
     now: number;
     emptyText: string;
+    estimate?: EstimateView | undefined;
   }
 
-  let { messages, id, title, usage, now, emptyText }: Props = $props();
+  let { messages, id, title, usage, now, emptyText, estimate }: Props = $props();
 
   const titleId = $derived(`tokens-${id}`);
   const hasUsage = $derived(usage.windowEnd !== null && usage.tokens > 0);
@@ -23,6 +24,9 @@
   <h2 class="title" id={titleId}>{title}</h2>
   {#if hasUsage}
     <p class="value">{formatTokens(usage.tokens, messages)}</p>
+    {#if estimate !== undefined}
+      <p class="estimate">{estimateText(estimate, messages)}</p>
+    {/if}
     {#if reset !== null}
       <p class="muted">{reset}</p>
     {/if}
@@ -32,6 +36,11 @@
 </section>
 
 <style>
+  .estimate {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
   .card {
     display: grid;
     gap: var(--space-1);

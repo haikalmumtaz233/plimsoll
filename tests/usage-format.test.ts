@@ -2,6 +2,8 @@ import { en, id } from "../src/lib/i18n/messages";
 import { describe, expect, it } from "vitest";
 import {
   alertText,
+  estimateFor,
+  estimateText,
   formatCountdown,
   formatPercent,
   formatTokens,
@@ -107,6 +109,25 @@ describe("indonesian formatting", () => {
     expect(limitTitle("seven_day", id)).toBe("Limit mingguan");
     expect(statusMessage(true, "retrying", false, id)).toBe(
       "Tidak bisa menghubungi Claude. Mencoba lagi sebentar lagi. Menampilkan estimasi lokal.",
+    );
+  });
+});
+
+describe("estimates", () => {
+  const estimate = { kind: "five_hour" as const, percent: 42.7, samples: 3 };
+  const estimates = [estimate];
+
+  it("finds the estimate for a limit", () => {
+    expect(estimateFor(estimates, "five_hour")?.samples).toBe(3);
+    expect(estimateFor(estimates, "seven_day")).toBeUndefined();
+  });
+
+  it("describes estimates in both languages", () => {
+    expect(estimateText(estimate, en)).toBe(
+      "About 42% of the limit, estimated from 3 past windows",
+    );
+    expect(estimateText(estimate, id)).toBe(
+      "Sekitar 42% dari limit, estimasi dari 3 jendela sebelumnya",
     );
   });
 });

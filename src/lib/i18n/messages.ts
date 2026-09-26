@@ -28,6 +28,7 @@ export interface Messages {
     daysHours: (days: number, hours: number) => string;
   };
   tokens: (formatted: string, count: number) => string;
+  estimate: (percent: string, samples: number) => string;
   windows: {
     fiveHour: string;
     week: string;
@@ -119,6 +120,8 @@ export const en: Messages = {
     daysHours: (days, hours) => `${String(days)}d ${String(hours)}h`,
   },
   tokens: (formatted, count) => `${formatted} ${count === 1 ? "token" : "tokens"}`,
+  estimate: (percent, samples) =>
+    `About ${percent} of the limit, estimated from ${String(samples)} past windows`,
   windows: {
     fiveHour: "5-hour window",
     week: "This week",
@@ -224,6 +227,8 @@ export const id: Messages = {
     daysHours: (days, hours) => `${String(days)} hari ${String(hours)} jam`,
   },
   tokens: (formatted) => `${formatted} token`,
+  estimate: (percent, samples) =>
+    `Sekitar ${percent} dari limit, estimasi dari ${String(samples)} jendela sebelumnya`,
   windows: {
     fiveHour: "Jendela 5 jam",
     week: "Minggu ini",
