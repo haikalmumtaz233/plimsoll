@@ -1,4 +1,4 @@
-import type { LimitKind, OAuthStatus } from "../api/usage";
+import type { AlertView, LimitKind, OAuthStatus } from "../api/usage";
 
 const MILLIS_PER_MINUTE = 60_000;
 const MINUTES_PER_HOUR = 60;
@@ -63,4 +63,8 @@ export function statusMessage(
     ? "Showing the last official reading."
     : "Showing local estimates.";
   return `${fallbackReasons[status]} ${fallback}`;
+}
+
+export function alertText(alert: AlertView): string {
+  return `${alert.title}. ${alert.body}`;
 }
