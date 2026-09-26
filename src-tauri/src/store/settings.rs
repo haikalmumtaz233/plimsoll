@@ -4,12 +4,13 @@ use super::{Database, DatabaseError};
 use crate::domain::alerts::Notified;
 use crate::domain::clock::Timestamp;
 use crate::domain::limit::LimitKind;
-use crate::domain::preferences::{PollInterval, Preferences};
+use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
 use crate::domain::severity::{Severity, Thresholds};
 
 const OAUTH_OPT_IN: &str = "oauth.opt_in";
 const ALERT_THRESHOLDS: &str = "alerts.thresholds";
 const POLL_MINUTES: &str = "oauth.poll_minutes";
+const LANGUAGE: &str = "ui.language";
 const LIST_SEPARATOR: char = ',';
 const NOTIFIED_PREFIX: &str = "alerts.notified.";
 const NOTIFIED_SEPARATOR: char = '@';
@@ -30,6 +31,11 @@ impl Database {
                 .and_then(|value| value.parse().ok())
                 .and_then(PollInterval::from_minutes)
                 .unwrap_or_default(),
+            language: self
+                .setting(LANGUAGE)?
+                .as_deref()
+                .and_then(LanguageChoice::from_code)
+                .unwrap_or_default(),
         })
     }
 
@@ -47,7 +53,8 @@ impl Database {
         self.set_setting(
             POLL_MINUTES,
             &preferences.poll_interval.minutes().to_string(),
-        )
+        )?;
+        self.set_setting(LANGUAGE, preferences.language.code())
     }
 
     pub fn notified_alerts(&self) -> Result<Vec<Notified>, DatabaseError> {
@@ -137,7 +144,7 @@ mod tests {
     use crate::domain::alerts::Notified;
     use crate::domain::clock::Timestamp;
     use crate::domain::limit::LimitKind;
-    use crate::domain::preferences::{PollInterval, Preferences};
+    use crate::domain::preferences::{Language, LanguageChoice, PollInterval, Preferences};
     use crate::domain::severity::{Severity, Thresholds};
     use crate::store::Database;
 
@@ -197,6 +204,7 @@ mod tests {
         let preferences = Preferences {
             thresholds: Thresholds::new(40, 70, 90).expect("valid thresholds"),
             poll_interval: PollInterval::from_minutes(5).expect("valid interval"),
+            language: LanguageChoice::Fixed(Language::Indonesian),
         };
         database.set_preferences(preferences).expect("write");
         assert_eq!(database.preferences().expect("read"), preferences);
@@ -218,10 +226,12 @@ mod tests {
         database
             .set_setting("oauth.poll_minutes", "7")
             .expect("write");
-        assert_eq!(
-            database.preferences().expect("read").poll_interval,
-            PollInterval::DEFAULT
-        );
+        database
+            .set_setting("ui.language", "klingon")
+            .expect("write");
+        let preferences = database.preferences().expect("read");
+        assert_eq!(preferences.poll_interval, PollInterval::DEFAULT);
+        assert_eq!(preferences.language, LanguageChoice::System);
     }
 
     #[test]

@@ -78,6 +78,7 @@ pub struct PreferencesView {
     pub thresholds: ThresholdsView,
     pub poll_minutes: u8,
     pub poll_choices: Vec<u8>,
+    pub language: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -150,6 +151,7 @@ fn preferences_view(preferences: Preferences) -> PreferencesView {
         },
         poll_minutes: preferences.poll_interval.minutes(),
         poll_choices: PollInterval::CHOICES.to_vec(),
+        language: preferences.language.code(),
     }
 }
 
@@ -272,7 +274,8 @@ mod tests {
                 "preferences": {
                     "thresholds": { "elevated": 50, "high": 80, "critical": 95 },
                     "pollMinutes": 1,
-                    "pollChoices": [1, 2, 5, 10]
+                    "pollChoices": [1, 2, 5, 10],
+                    "language": "system"
                 },
                 "limits": [{
                     "kind": "five_hour",

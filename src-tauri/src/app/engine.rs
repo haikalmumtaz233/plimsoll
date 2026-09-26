@@ -286,6 +286,7 @@ mod tests {
         let preferences = Preferences {
             thresholds: Thresholds::new(30, 60, 90).expect("valid thresholds"),
             poll_interval: PollInterval::from_minutes(2).expect("valid interval"),
+            ..Preferences::default()
         };
         engine.set_preferences(preferences).expect("write");
         assert_eq!(engine.report(NOW).expect("report").preferences, preferences);
