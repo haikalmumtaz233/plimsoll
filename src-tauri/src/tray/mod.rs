@@ -1,6 +1,7 @@
 pub mod glyph;
 mod menu;
 pub mod palette;
+pub mod placement;
 mod popup;
 pub mod reading;
 pub mod render;
