@@ -77,6 +77,7 @@
 
   @media (forced-colors: active) {
     .choice input:checked + span {
+      forced-color-adjust: none;
       background: Highlight;
       color: HighlightText;
     }

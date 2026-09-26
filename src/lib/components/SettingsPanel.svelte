@@ -214,7 +214,15 @@
 
   @media (forced-colors: active) {
     button {
+      forced-color-adjust: none;
+      color: ButtonText;
+      background: ButtonFace;
       border: 0.0625rem solid ButtonText;
+    }
+
+    button:disabled {
+      color: GrayText;
+      border-color: GrayText;
     }
   }
 </style>

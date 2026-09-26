@@ -97,4 +97,11 @@
     font-size: 0.875rem;
     color: var(--color-text-muted);
   }
+
+  @media (forced-colors: active) {
+    .meter,
+    .meter::-webkit-meter-bar {
+      border: 0.0625rem solid CanvasText;
+    }
+  }
 </style>
