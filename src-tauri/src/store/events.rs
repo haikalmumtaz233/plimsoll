@@ -15,6 +15,8 @@ const INSERT_EVENT: &str = "INSERT OR IGNORE INTO usage_events \
 const SELECT_EVENTS: &str = "SELECT ts, model, project, input, output, cache_create, cache_read \
     FROM usage_events WHERE ts >= ?1 AND ts < ?2 ORDER BY ts, id";
 
+const SUM_TOKENS: &str = "SELECT COALESCE(SUM(input), 0), COALESCE(SUM(output), 0), \n    COALESCE(SUM(cache_create), 0), COALESCE(SUM(cache_read), 0) \n    FROM usage_events WHERE ts >= ?1 AND ts < ?2";
+
 impl Database {
     pub fn insert_events(&mut self, events: &[KeyedEvent]) -> Result<usize, DatabaseError> {
         let transaction = self.connection.transaction()?;
@@ -60,6 +62,23 @@ impl Database {
             },
         )?;
         rows.collect::<Result<Vec<_>, _>>()
+            .map_err(DatabaseError::from)
+    }
+
+    pub fn tokens_in(&self, window: Window) -> Result<TokenCounts, DatabaseError> {
+        self.connection
+            .query_row(
+                SUM_TOKENS,
+                params![window.start().unix_millis(), window.end().unix_millis()],
+                |row| {
+                    Ok(TokenCounts {
+                        input: from_sql_count(row.get(0)?),
+                        output: from_sql_count(row.get(1)?),
+                        cache_creation: from_sql_count(row.get(2)?),
+                        cache_read: from_sql_count(row.get(3)?),
+                    })
+                },
+            )
             .map_err(DatabaseError::from)
     }
 
@@ -140,6 +159,31 @@ mod tests {
         let events = database.events_in(window).expect("query");
         assert_eq!(events.len(), 1);
         assert_eq!(events[0], keyed("start", 1_000, 2).event);
+    }
+
+    #[test]
+    fn token_totals_sum_inside_the_window() {
+        let mut database = Database::open_in_memory().expect("open");
+        database
+            .insert_events(&[
+                keyed("before", 999, 1),
+                keyed("start", 1_000, 2),
+                keyed("inside", 1_500, 4),
+                keyed("end", 2_000, 8),
+            ])
+            .expect("insert");
+        let window =
+            Window::starting_at(Timestamp::from_unix_millis(1_000), Span::from_millis(1_000));
+        let totals = database.tokens_in(window).expect("sum");
+        assert_eq!(totals.output, 6);
+        assert_eq!(totals.input, 2);
+        assert_eq!(totals.cache_read, 200);
+        let empty =
+            Window::starting_at(Timestamp::from_unix_millis(5_000), Span::from_millis(1_000));
+        assert_eq!(
+            database.tokens_in(empty).expect("sum"),
+            TokenCounts::default()
+        );
     }
 
     #[test]

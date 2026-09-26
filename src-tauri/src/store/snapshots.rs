@@ -7,6 +7,8 @@ use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
 const INSERT_SNAPSHOT: &str = "INSERT INTO limit_snapshots (ts, window_kind, utilization, resets_at) \
     VALUES (?1, ?2, ?3, ?4)";
 
+const SELECT_WINDOW_PEAKS: &str = "SELECT MAX(ts), MAX(utilization), resets_at FROM limit_snapshots \n    WHERE window_kind = ?1 AND ts >= ?2 AND resets_at IS NOT NULL GROUP BY resets_at ORDER BY resets_at";
+
 const SELECT_LATEST: &str = "SELECT ts, utilization, resets_at FROM limit_snapshots \
     WHERE window_kind = ?1 ORDER BY ts DESC, id DESC LIMIT 1";
 
@@ -68,6 +70,36 @@ impl Database {
         Ok(latest)
     }
 
+    pub fn window_peaks(
+        &self,
+        kind: LimitKind,
+        since: Timestamp,
+    ) -> Result<Vec<(Timestamp, LimitSnapshot)>, DatabaseError> {
+        let mut statement = self.connection.prepare(SELECT_WINDOW_PEAKS)?;
+        let rows = statement.query_map(params![kind.name(), since.unix_millis()], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, f64>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+        let mut peaks = Vec::new();
+        for row in rows {
+            let (observed_at, percent, resets_at) = row?;
+            if let Some(utilization) = Utilization::from_percent(percent) {
+                peaks.push((
+                    Timestamp::from_unix_millis(observed_at),
+                    LimitSnapshot {
+                        kind,
+                        utilization,
+                        resets_at: Some(Timestamp::from_unix_millis(resets_at)),
+                    },
+                ));
+            }
+        }
+        Ok(peaks)
+    }
+
     pub fn prune_snapshots_before(&self, cutoff: Timestamp) -> Result<usize, DatabaseError> {
         self.connection
             .execute(
@@ -95,6 +127,45 @@ mod tests {
 
     fn at(millis: i64) -> Timestamp {
         Timestamp::from_unix_millis(millis)
+    }
+
+    #[test]
+    fn window_peaks_keep_the_highest_reading_per_reset() {
+        let mut database = Database::open_in_memory().expect("open");
+        let first = Some(9_000);
+        let second = Some(20_000);
+        database
+            .insert_snapshots(at(1_000), &[snapshot(LimitKind::FiveHour, 10.0, first)])
+            .expect("insert");
+        database
+            .insert_snapshots(at(2_000), &[snapshot(LimitKind::FiveHour, 30.0, first)])
+            .expect("insert");
+        database
+            .insert_snapshots(at(12_000), &[snapshot(LimitKind::FiveHour, 5.0, second)])
+            .expect("insert");
+        database
+            .insert_snapshots(at(3_000), &[snapshot(LimitKind::SevenDay, 50.0, first)])
+            .expect("insert");
+        database
+            .insert_snapshots(at(4_000), &[snapshot(LimitKind::FiveHour, 70.0, None)])
+            .expect("insert");
+        let peaks = database
+            .window_peaks(LimitKind::FiveHour, at(0))
+            .expect("query");
+        assert_eq!(
+            peaks,
+            vec![
+                (at(2_000), snapshot(LimitKind::FiveHour, 30.0, first)),
+                (at(12_000), snapshot(LimitKind::FiveHour, 5.0, second)),
+            ]
+        );
+        assert_eq!(
+            database
+                .window_peaks(LimitKind::FiveHour, at(2_001))
+                .expect("query")
+                .len(),
+            1
+        );
     }
 
     #[test]
