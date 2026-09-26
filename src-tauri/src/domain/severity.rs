@@ -60,6 +60,25 @@ pub enum Severity {
 }
 
 impl Severity {
+    pub const ALL: [Self; 4] = [Self::Normal, Self::Elevated, Self::High, Self::Critical];
+
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Normal => "normal",
+            Self::Elevated => "elevated",
+            Self::High => "high",
+            Self::Critical => "critical",
+        }
+    }
+
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|severity| severity.name() == name)
+    }
+
     #[must_use]
     pub fn of(utilization: Utilization, thresholds: Thresholds) -> Self {
         let percent = utilization.percent();
@@ -127,6 +146,14 @@ mod tests {
             (custom.elevated(), custom.high(), custom.critical()),
             (10, 20, 30)
         );
+    }
+
+    #[test]
+    fn severity_names_round_trip() {
+        for severity in Severity::ALL {
+            assert_eq!(Severity::from_name(severity.name()), Some(severity));
+        }
+        assert_eq!(Severity::from_name("urgent"), None);
     }
 
     #[test]
