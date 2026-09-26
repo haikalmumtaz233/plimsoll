@@ -13,6 +13,7 @@ use tauri::{AppHandle, Runtime};
 
 use crate::app::clock;
 use crate::domain::clock::Timestamp;
+use crate::domain::severity::Thresholds;
 use crate::error::AppError;
 use menu::MenuAction;
 use reading::TrayReading;
@@ -27,7 +28,7 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let menu = Menu::with_items(app, &[&open, &quit])?;
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(icon_image(app, &idle)?)
+        .icon(icon_image(app, &idle, Thresholds::DEFAULT)?)
         .tooltip(idle.tooltip(clock::now()))
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -40,10 +41,11 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
 pub fn show_reading<R: Runtime>(
     app: &AppHandle<R>,
     reading: &TrayReading,
+    thresholds: Thresholds,
     now: Timestamp,
 ) -> Result<(), AppError> {
     let tray = app.tray_by_id(TRAY_ID).ok_or(AppError::MissingTray)?;
-    tray.set_icon(Some(icon_image(app, reading)?))?;
+    tray.set_icon(Some(icon_image(app, reading, thresholds)?))?;
     tray.set_tooltip(Some(reading.tooltip(now)))?;
     Ok(())
 }
@@ -51,6 +53,7 @@ pub fn show_reading<R: Runtime>(
 fn icon_image<R: Runtime>(
     app: &AppHandle<R>,
     reading: &TrayReading,
+    thresholds: Thresholds,
 ) -> Result<Image<'static>, AppError> {
     let scale = app
         .primary_monitor()
@@ -59,7 +62,7 @@ fn icon_image<R: Runtime>(
         .map_or(DEFAULT_SCALE, |monitor| monitor.scale_factor());
     let bitmap = render::render(
         &reading.label(),
-        reading.tone().palette(),
+        reading.tone(thresholds).palette(),
         render::icon_size(scale),
     )
     .ok_or(AppError::IconRender)?;

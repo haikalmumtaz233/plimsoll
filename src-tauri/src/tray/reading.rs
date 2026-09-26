@@ -1,7 +1,7 @@
 use super::palette::Tone;
 use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, LimitSnapshot};
-use crate::domain::severity::Severity;
+use crate::domain::severity::{Severity, Thresholds};
 use crate::domain::summary::UsageSummary;
 
 const APP_NAME: &str = "Plimsoll";
@@ -43,10 +43,10 @@ impl TrayReading {
     }
 
     #[must_use]
-    pub fn tone(&self) -> Tone {
+    pub fn tone(&self, thresholds: Thresholds) -> Tone {
         match self {
             Self::Limits(limits) => binding_limit(limits).map_or(Tone::Neutral, |limit| {
-                Tone::Severity(Severity::of(limit.utilization))
+                Tone::Severity(Severity::of(limit.utilization, thresholds))
             }),
             Self::Idle | Self::Tokens(_) => Tone::Neutral,
         }
@@ -141,7 +141,7 @@ mod tests {
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
-    use crate::domain::severity::Severity;
+    use crate::domain::severity::{Severity, Thresholds};
     use crate::domain::summary::{TokenWindow, UsageSummary};
     use crate::domain::tokens::TokenCounts;
     use crate::tray::glyph::glyph;
@@ -207,7 +207,7 @@ mod tests {
     fn idle_shows_a_dash_on_a_neutral_badge() {
         let reading = TrayReading::Idle;
         assert_eq!(reading.label(), "-");
-        assert_eq!(reading.tone(), Tone::Neutral);
+        assert_eq!(reading.tone(Thresholds::DEFAULT), Tone::Neutral);
         assert_eq!(
             reading.tooltip(NOW),
             "Plimsoll\nNo usage in the current 5-hour window"
@@ -219,7 +219,7 @@ mod tests {
     fn tokens_are_compact_on_the_icon_and_exact_in_the_tooltip() {
         let reading = TrayReading::Tokens(241_532);
         assert_eq!(reading.label(), "241k");
-        assert_eq!(reading.tone(), Tone::Neutral);
+        assert_eq!(reading.tone(Thresholds::DEFAULT), Tone::Neutral);
         assert_eq!(
             reading.tooltip(NOW),
             "Plimsoll\n241,532 tokens in this 5-hour window"
@@ -257,7 +257,10 @@ mod tests {
             limit(LimitKind::SevenDay, 96.2, None),
         ]);
         assert_eq!(reading.label(), "96");
-        assert_eq!(reading.tone(), Tone::Severity(Severity::Critical));
+        assert_eq!(
+            reading.tone(Thresholds::DEFAULT),
+            Tone::Severity(Severity::Critical)
+        );
     }
 
     #[test]
