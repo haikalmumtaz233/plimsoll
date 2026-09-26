@@ -54,6 +54,10 @@ export function dailyBars(history: HistoryView, days: number, timeZone?: string)
   return bars.slice(-days);
 }
 
+export function rangeName(range: HistoryRange): string {
+  return range === "day" ? "Last 24 hours" : "Last 7 days";
+}
+
 export function niceCeiling(value: number): number {
   if (value <= 0) {
     return 0;

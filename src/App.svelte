@@ -4,16 +4,19 @@
   import AppHeader from "./lib/components/AppHeader.svelte";
   import LimitCard from "./lib/components/LimitCard.svelte";
   import TokenCard from "./lib/components/TokenCard.svelte";
+  import UsageBreakdown from "./lib/components/UsageBreakdown.svelte";
   import UsageChart from "./lib/components/UsageChart.svelte";
   import { hidePopup, readAppVersion } from "./lib/api/app";
   import { loadUsage, onUsageUpdated, setAccurateMode, type UsageView } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
   import { statusMessage } from "./lib/usage/format";
+  import { rangeName, type HistoryRange } from "./lib/usage/history";
 
   let version = $state<string | undefined>(undefined);
   let view = $state<UsageView | undefined>(undefined);
   let loadFailed = $state(false);
   let toggleError = $state("");
+  let range = $state<HistoryRange>("day");
 
   function accept(next: UsageView) {
     if (view === undefined || next.generatedAt >= view.generatedAt) {
@@ -106,7 +109,8 @@
         emptyText="No usage this week yet."
       />
     {/if}
-    <UsageChart history={view.history} />
+    <UsageChart history={view.history} bind:range />
+    <UsageBreakdown breakdown={view.breakdown[range]} rangeName={rangeName(range)} />
     <AccurateModeToggle enabled={view.accurateMode} onchange={changeAccurateMode} />
     {#if toggleError !== ""}
       <p class="error" role="alert">{toggleError}</p>

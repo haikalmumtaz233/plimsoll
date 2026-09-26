@@ -5,6 +5,7 @@ import {
   dailyBars,
   hourlyBars,
   niceCeiling,
+  rangeName,
   totalTokens,
 } from "../src/lib/usage/history";
 
@@ -53,6 +54,13 @@ describe("dailyBars", () => {
     expect(jakarta.at(-1)?.tokens).not.toBe(utc.at(-1)?.tokens);
     const everything = week().tokens.reduce((sum, tokens) => sum + tokens, 0);
     expect(totalTokens(jakarta)).toBeLessThanOrEqual(everything);
+  });
+});
+
+describe("rangeName", () => {
+  it("names both ranges", () => {
+    expect(rangeName("day")).toBe("Last 24 hours");
+    expect(rangeName("week")).toBe("Last 7 days");
   });
 });
 
