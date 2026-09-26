@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use crate::domain::alerts::{self, Alert};
 use crate::domain::calibration::{self, Basis, Calibration, Estimate, Sample};
 use crate::domain::clock::{Span, Timestamp};
-use crate::domain::limit::{LimitKind, LimitSnapshot};
+use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
+use crate::domain::manual::ManualReading;
 use crate::domain::period::Window;
 use crate::domain::preferences::Preferences;
 use crate::domain::record::KeyedEvent;
@@ -133,15 +134,33 @@ impl Engine {
         if !summary.limits.is_empty() {
             return Ok(Vec::new());
         }
+        let manual = self.manual_readings(summary, now)?;
         let mut estimates = Vec::new();
         for (kind, window) in [
             (LimitKind::FiveHour, summary.five_hour),
             (LimitKind::SevenDay, summary.weekly),
         ] {
+            let calibration = self.calibration(kind, now)?;
+            if let Some(reading) = manual.iter().find(|reading| reading.kind == kind) {
+                let since = Window::starting_at(
+                    reading.entered_at,
+                    (now + Span::from_millis(1)) - reading.entered_at,
+                );
+                let tokens_since = self.database.tokens_in(since)?.excluding_cache_reads();
+                estimates.push(Estimate {
+                    kind,
+                    utilization: reading.project(tokens_since, calibration),
+                    basis: Basis::Manual {
+                        entered_at: reading.entered_at,
+                        entered: reading.utilization,
+                    },
+                });
+                continue;
+            }
             if window.window.is_none() {
                 continue;
             }
-            if let Some(calibration) = self.calibration(kind, now)?
+            if let Some(calibration) = calibration
                 && let Some(utilization) =
                     calibration.estimate(window.tokens.excluding_cache_reads())
             {
@@ -155,6 +174,35 @@ impl Engine {
             }
         }
         Ok(estimates)
+    }
+
+    pub fn set_manual_reading(
+        &mut self,
+        kind: LimitKind,
+        utilization: Option<Utilization>,
+        now: Timestamp,
+    ) -> Result<(), DatabaseError> {
+        self.database
+            .set_manual_reading(kind, utilization.map(|utilization| (utilization, now)))
+    }
+
+    fn manual_readings(
+        &self,
+        summary: &UsageSummary,
+        now: Timestamp,
+    ) -> Result<Vec<ManualReading>, DatabaseError> {
+        Ok(self
+            .database
+            .manual_readings()?
+            .into_iter()
+            .filter(|reading| {
+                let window = match reading.kind {
+                    LimitKind::FiveHour => None,
+                    LimitKind::SevenDay => summary.weekly.window,
+                };
+                reading.applies(window, now)
+            })
+            .collect())
     }
 
     fn calibration(
@@ -374,6 +422,33 @@ mod tests {
         engine
             .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
             .expect("record current");
+        assert!(engine.report(NOW).expect("report").estimates.is_empty());
+    }
+
+    #[test]
+    fn manual_readings_win_over_calibration_until_they_expire() {
+        let mut engine = engine();
+        engine
+            .store_jsonl(&[keyed("recent", 20, 500)], &[])
+            .expect("store");
+        engine
+            .set_manual_reading(
+                LimitKind::FiveHour,
+                Some(Utilization::from_percent(30.0).expect("valid percent")),
+                NOW - Span::from_millis(60 * 60_000),
+            )
+            .expect("manual");
+        let report = engine.report(NOW).expect("report");
+        assert_eq!(report.estimates.len(), 1);
+        assert!((report.estimates[0].utilization.percent() - 30.0).abs() < 1e-9);
+        assert!(matches!(report.estimates[0].basis, Basis::Manual { .. }));
+
+        let later = NOW + Span::hours(5);
+        assert!(engine.report(later).expect("report").estimates.is_empty());
+
+        engine
+            .set_manual_reading(LimitKind::FiveHour, None, NOW)
+            .expect("clear");
         assert!(engine.report(NOW).expect("report").estimates.is_empty());
     }
 
