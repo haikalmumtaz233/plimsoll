@@ -1,13 +1,19 @@
 use rusqlite::{OptionalExtension, params};
 
 use super::{Database, DatabaseError};
+use crate::domain::alerts::Notified;
+use crate::domain::clock::Timestamp;
+use crate::domain::limit::LimitKind;
 use crate::domain::preferences::{PollInterval, Preferences};
-use crate::domain::severity::Thresholds;
+use crate::domain::severity::{Severity, Thresholds};
 
 const OAUTH_OPT_IN: &str = "oauth.opt_in";
 const ALERT_THRESHOLDS: &str = "alerts.thresholds";
 const POLL_MINUTES: &str = "oauth.poll_minutes";
 const LIST_SEPARATOR: char = ',';
+const NOTIFIED_PREFIX: &str = "alerts.notified.";
+const NOTIFIED_SEPARATOR: char = '@';
+const NO_RESET: &str = "none";
 const ENABLED: &str = "true";
 const DISABLED: &str = "false";
 
@@ -44,6 +50,30 @@ impl Database {
         )
     }
 
+    pub fn notified_alerts(&self) -> Result<Vec<Notified>, DatabaseError> {
+        let mut notified = Vec::new();
+        for kind in LimitKind::ALL {
+            if let Some(entry) = self
+                .setting(&notified_key(kind))?
+                .as_deref()
+                .and_then(|value| parse_notified(kind, value))
+            {
+                notified.push(entry);
+            }
+        }
+        Ok(notified)
+    }
+
+    pub fn record_notified(&self, notified: Notified) -> Result<(), DatabaseError> {
+        let reset = notified
+            .resets_at
+            .map_or_else(|| NO_RESET.to_owned(), |at| at.unix_millis().to_string());
+        self.set_setting(
+            &notified_key(notified.kind),
+            &format!("{}{NOTIFIED_SEPARATOR}{reset}", notified.severity.name()),
+        )
+    }
+
     pub fn oauth_opted_in(&self) -> Result<bool, DatabaseError> {
         Ok(self.setting(OAUTH_OPT_IN)?.as_deref() == Some(ENABLED))
     }
@@ -73,6 +103,24 @@ impl Database {
     }
 }
 
+fn notified_key(kind: LimitKind) -> String {
+    format!("{NOTIFIED_PREFIX}{}", kind.name())
+}
+
+fn parse_notified(kind: LimitKind, value: &str) -> Option<Notified> {
+    let (severity, reset) = value.split_once(NOTIFIED_SEPARATOR)?;
+    let resets_at = if reset == NO_RESET {
+        None
+    } else {
+        Some(Timestamp::from_unix_millis(reset.parse().ok()?))
+    };
+    Some(Notified {
+        kind,
+        severity: Severity::from_name(severity)?,
+        resets_at,
+    })
+}
+
 fn parse_thresholds(value: &str) -> Option<Thresholds> {
     let mut parts = value.split(LIST_SEPARATOR).map(str::parse::<u8>);
     let elevated = parts.next()?.ok()?;
@@ -86,9 +134,53 @@ fn parse_thresholds(value: &str) -> Option<Thresholds> {
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::alerts::Notified;
+    use crate::domain::clock::Timestamp;
+    use crate::domain::limit::LimitKind;
     use crate::domain::preferences::{PollInterval, Preferences};
-    use crate::domain::severity::Thresholds;
+    use crate::domain::severity::{Severity, Thresholds};
     use crate::store::Database;
+
+    #[test]
+    fn notified_alerts_round_trip_per_limit() {
+        let database = Database::open_in_memory().expect("open");
+        assert!(database.notified_alerts().expect("read").is_empty());
+        let five_hour = Notified {
+            kind: LimitKind::FiveHour,
+            severity: Severity::High,
+            resets_at: Some(Timestamp::from_unix_millis(1_790_317_800_000)),
+        };
+        let weekly = Notified {
+            kind: LimitKind::SevenDay,
+            severity: Severity::Elevated,
+            resets_at: None,
+        };
+        database.record_notified(five_hour).expect("write");
+        database.record_notified(weekly).expect("write");
+        let critical = Notified {
+            severity: Severity::Critical,
+            ..five_hour
+        };
+        database.record_notified(critical).expect("overwrite");
+        assert_eq!(
+            database.notified_alerts().expect("read"),
+            vec![critical, weekly]
+        );
+    }
+
+    #[test]
+    fn corrupt_notified_entries_are_ignored() {
+        let database = Database::open_in_memory().expect("open");
+        for value in ["", "high", "loud@none", "high@soon"] {
+            database
+                .set_setting("alerts.notified.five_hour", value)
+                .expect("write");
+            assert!(
+                database.notified_alerts().expect("read").is_empty(),
+                "{value}"
+            );
+        }
+    }
 
     #[test]
     fn preferences_default_until_saved() {
