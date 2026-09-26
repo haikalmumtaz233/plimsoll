@@ -31,12 +31,27 @@ impl Jitter {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PollSchedule {
+    base: Duration,
     failures: u32,
 }
 
+impl Default for PollSchedule {
+    fn default() -> Self {
+        Self::new(MIN_INTERVAL)
+    }
+}
+
 impl PollSchedule {
+    #[must_use]
+    pub fn new(base: Duration) -> Self {
+        Self {
+            base: base.max(MIN_INTERVAL),
+            failures: 0,
+        }
+    }
+
     #[must_use]
     pub const fn failures(&self) -> u32 {
         self.failures
@@ -44,13 +59,13 @@ impl PollSchedule {
 
     pub fn after_success(&mut self, jitter: Jitter) -> Duration {
         self.failures = 0;
-        jitter.apply(MIN_INTERVAL)
+        jitter.apply(self.base)
     }
 
     pub fn after_failure(&mut self, retry_after: Option<Duration>, jitter: Jitter) -> Duration {
         self.failures = self.failures.saturating_add(1);
         let doublings = self.failures.min(MAX_DOUBLINGS);
-        let backoff = (MIN_INTERVAL * (1 << doublings)).min(MAX_BACKOFF);
+        let backoff = (self.base * (1 << doublings)).min(MAX_BACKOFF.max(self.base));
         let requested = retry_after.map_or(Duration::ZERO, |wait| wait.min(MAX_RETRY_AFTER));
         jitter.apply(backoff.max(requested))
     }
@@ -63,6 +78,22 @@ mod tests {
 
     fn secs(duration: Duration) -> u64 {
         duration.as_secs()
+    }
+
+    #[test]
+    fn a_longer_base_interval_stretches_success_and_backoff() {
+        let mut schedule = PollSchedule::new(Duration::from_secs(300));
+        assert_eq!(secs(schedule.after_success(Jitter::NONE)), 300);
+        assert_eq!(secs(schedule.after_failure(None, Jitter::NONE)), 600);
+        assert_eq!(schedule.after_failure(None, Jitter::NONE), MAX_BACKOFF);
+        let mut slow = PollSchedule::new(Duration::from_secs(600));
+        assert_eq!(slow.after_failure(None, Jitter::NONE), MAX_BACKOFF);
+    }
+
+    #[test]
+    fn base_intervals_never_drop_below_the_minimum() {
+        let mut schedule = PollSchedule::new(Duration::from_secs(5));
+        assert_eq!(schedule.after_success(Jitter::NONE), MIN_INTERVAL);
     }
 
     #[test]
