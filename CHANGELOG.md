@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Token history chart in the popup for the last 24 hours or the last 7 days, with a data table for screen readers and keyboard users.
+
+### Changed
+
+- The popup opens next to the tray icon instead of the center of the screen.
+
 ## [0.1.0] - 2026-09-26
 
 ### Added
