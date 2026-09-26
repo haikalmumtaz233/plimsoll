@@ -1,4 +1,5 @@
 pub mod clock;
+pub mod engine;
 
 use crate::error::AppError;
 use crate::tray;
