@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-26
+
 ### Added
 
 - Token history chart in the popup for the last 24 hours or the last 7 days, with a data table for screen readers and keyboard users.
@@ -33,5 +35,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Opt-in accurate mode that reads the Claude Code sign-in on this PC to fetch official percentages, falling back to local estimates when it is unavailable.
 - Tray icon drawn as a sharp badge at 100 to 300 percent display scaling: the most used limit in percent, colored at 50, 80 and 95 percent, or tokens used when accurate mode is off. The tooltip lists each limit with its reset countdown.
 
-[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/haikalmumtaz233/plimsoll/releases/tag/v0.1.0
