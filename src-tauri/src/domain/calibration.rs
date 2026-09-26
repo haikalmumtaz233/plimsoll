@@ -21,6 +21,13 @@ pub struct Sample {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Estimate {
+    pub kind: LimitKind,
+    pub utilization: Utilization,
+    pub samples: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Calibration {
     tokens_per_percent: f64,
     samples: usize,
