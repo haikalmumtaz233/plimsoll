@@ -5,4 +5,5 @@ pub mod period;
 pub mod record;
 pub mod session;
 pub mod severity;
+pub mod summary;
 pub mod tokens;
