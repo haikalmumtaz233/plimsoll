@@ -2,6 +2,7 @@ use serde::Serialize;
 
 use super::engine::Report;
 use crate::domain::clock::Timestamp;
+use crate::domain::history::{BUCKET, HourlyHistory};
 use crate::domain::limit::LimitSnapshot;
 use crate::domain::period::Window;
 use crate::domain::summary::TokenWindow;
@@ -23,6 +24,14 @@ pub struct TokenView {
     pub window_end: Option<i64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryView {
+    pub start: i64,
+    pub bucket_millis: i64,
+    pub tokens: Vec<u64>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageView {
@@ -31,6 +40,7 @@ pub struct UsageView {
     pub limits: Vec<LimitView>,
     pub five_hour: TokenView,
     pub weekly: TokenView,
+    pub history: HistoryView,
     pub generated_at: i64,
 }
 
@@ -43,6 +53,7 @@ impl UsageView {
             limits: report.summary.limits.iter().map(limit_view).collect(),
             five_hour: token_view(report.summary.five_hour),
             weekly: token_view(report.summary.weekly),
+            history: history_view(&report.summary.history),
             generated_at: now.unix_millis(),
         }
     }
@@ -53,6 +64,14 @@ fn limit_view(limit: &LimitSnapshot) -> LimitView {
         kind: limit.kind.name(),
         percent: limit.utilization.percent(),
         resets_at: limit.resets_at.map(Timestamp::unix_millis),
+    }
+}
+
+fn history_view(history: &HourlyHistory) -> HistoryView {
+    HistoryView {
+        start: history.start.unix_millis(),
+        bucket_millis: BUCKET.millis(),
+        tokens: history.tokens.clone(),
     }
 }
 
@@ -73,6 +92,7 @@ mod tests {
     use super::UsageView;
     use crate::app::engine::Report;
     use crate::domain::clock::{Span, Timestamp};
+    use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::period::Window;
     use crate::domain::summary::{TokenWindow, UsageSummary};
@@ -107,6 +127,10 @@ mod tests {
                     window: None,
                     tokens: TokenCounts::default(),
                 },
+                history: HourlyHistory {
+                    start: NOW,
+                    tokens: vec![0, 7],
+                },
             },
         };
         let value = serde_json::to_value(UsageView::from_report(&report, NOW)).expect("json");
@@ -126,6 +150,11 @@ mod tests {
                     "windowEnd": window.end().unix_millis()
                 },
                 "weekly": { "tokens": 0, "windowStart": null, "windowEnd": null },
+                "history": {
+                    "start": NOW.unix_millis(),
+                    "bucketMillis": 3_600_000,
+                    "tokens": [0, 7]
+                },
                 "generatedAt": NOW.unix_millis()
             })
         );
