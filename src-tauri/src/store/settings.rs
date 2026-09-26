@@ -3,7 +3,8 @@ use rusqlite::{OptionalExtension, params};
 use super::{Database, DatabaseError};
 use crate::domain::alerts::Notified;
 use crate::domain::clock::Timestamp;
-use crate::domain::limit::LimitKind;
+use crate::domain::limit::{LimitKind, Utilization};
+use crate::domain::manual::ManualReading;
 use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
 use crate::domain::severity::{Severity, Thresholds};
 
@@ -15,6 +16,7 @@ const LIST_SEPARATOR: char = ',';
 const NOTIFIED_PREFIX: &str = "alerts.notified.";
 const NOTIFIED_SEPARATOR: char = '@';
 const NO_RESET: &str = "none";
+const MANUAL_PREFIX: &str = "manual.";
 const ENABLED: &str = "true";
 const DISABLED: &str = "false";
 
@@ -81,6 +83,44 @@ impl Database {
         )
     }
 
+    pub fn manual_readings(&self) -> Result<Vec<ManualReading>, DatabaseError> {
+        let mut readings = Vec::new();
+        for kind in LimitKind::ALL {
+            if let Some(reading) = self
+                .setting(&manual_key(kind))?
+                .as_deref()
+                .and_then(|value| parse_manual(kind, value))
+            {
+                readings.push(reading);
+            }
+        }
+        Ok(readings)
+    }
+
+    pub fn set_manual_reading(
+        &self,
+        kind: LimitKind,
+        reading: Option<(Utilization, Timestamp)>,
+    ) -> Result<(), DatabaseError> {
+        match reading {
+            Some((utilization, entered_at)) => self.set_setting(
+                &manual_key(kind),
+                &format!(
+                    "{}{NOTIFIED_SEPARATOR}{}",
+                    utilization.percent(),
+                    entered_at.unix_millis()
+                ),
+            ),
+            None => self.remove_setting(&manual_key(kind)),
+        }
+    }
+
+    pub fn remove_setting(&self, name: &str) -> Result<(), DatabaseError> {
+        self.connection
+            .execute("DELETE FROM settings WHERE name = ?1", params![name])?;
+        Ok(())
+    }
+
     pub fn oauth_opted_in(&self) -> Result<bool, DatabaseError> {
         Ok(self.setting(OAUTH_OPT_IN)?.as_deref() == Some(ENABLED))
     }
@@ -108,6 +148,19 @@ impl Database {
         )?;
         Ok(())
     }
+}
+
+fn manual_key(kind: LimitKind) -> String {
+    format!("{MANUAL_PREFIX}{}", kind.name())
+}
+
+fn parse_manual(kind: LimitKind, value: &str) -> Option<ManualReading> {
+    let (percent, entered_at) = value.split_once(NOTIFIED_SEPARATOR)?;
+    Some(ManualReading {
+        kind,
+        utilization: Utilization::from_percent(percent.parse().ok()?)?,
+        entered_at: Timestamp::from_unix_millis(entered_at.parse().ok()?),
+    })
 }
 
 fn notified_key(kind: LimitKind) -> String {
@@ -143,10 +196,38 @@ fn parse_thresholds(value: &str) -> Option<Thresholds> {
 mod tests {
     use crate::domain::alerts::Notified;
     use crate::domain::clock::Timestamp;
-    use crate::domain::limit::LimitKind;
+    use crate::domain::limit::{LimitKind, Utilization};
+    use crate::domain::manual::ManualReading;
     use crate::domain::preferences::{Language, LanguageChoice, PollInterval, Preferences};
     use crate::domain::severity::{Severity, Thresholds};
     use crate::store::Database;
+
+    #[test]
+    fn manual_readings_can_be_set_and_cleared() {
+        let database = Database::open_in_memory().expect("open");
+        assert!(database.manual_readings().expect("read").is_empty());
+        let entered_at = Timestamp::from_unix_millis(1_790_300_000_000);
+        let percent = Utilization::from_percent(42.5).expect("valid percent");
+        database
+            .set_manual_reading(LimitKind::SevenDay, Some((percent, entered_at)))
+            .expect("write");
+        assert_eq!(
+            database.manual_readings().expect("read"),
+            vec![ManualReading {
+                kind: LimitKind::SevenDay,
+                utilization: percent,
+                entered_at,
+            }]
+        );
+        database
+            .set_manual_reading(LimitKind::SevenDay, None)
+            .expect("clear");
+        assert!(database.manual_readings().expect("read").is_empty());
+        database
+            .set_setting("manual.five_hour", "lots@soon")
+            .expect("write");
+        assert!(database.manual_readings().expect("read").is_empty());
+    }
 
     #[test]
     fn notified_alerts_round_trip_per_limit() {
