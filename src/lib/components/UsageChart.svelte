@@ -182,6 +182,7 @@
 
   .heading {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
@@ -215,7 +216,7 @@
 
   .axis {
     fill: var(--color-text-muted);
-    font-size: 0.625rem;
+    font-size: min(0.625rem, 12px);
     font-variant-numeric: tabular-nums;
   }
 
@@ -234,6 +235,8 @@
 
   .data summary {
     width: fit-content;
+    min-height: 1.5rem;
+    line-height: 1.5rem;
     font-size: 0.8125rem;
     color: var(--color-text-muted);
     cursor: pointer;

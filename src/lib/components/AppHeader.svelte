@@ -31,6 +31,7 @@
   }
 
   .toggle {
+    min-height: 1.5rem;
     padding: 0.125rem var(--space-2);
     font: inherit;
     font-size: 0.875rem;
@@ -43,6 +44,7 @@
 
   .header {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-2);

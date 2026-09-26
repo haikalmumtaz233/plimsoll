@@ -227,6 +227,7 @@
 
   .dismiss {
     flex-shrink: 0;
+    min-height: 1.5rem;
     padding: 0 var(--space-2);
     font: inherit;
     font-size: 0.8125rem;
@@ -239,6 +240,7 @@
 
   .popup {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     padding: var(--space-4);
   }

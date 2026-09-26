@@ -57,8 +57,11 @@
   }
 
   .choice span {
-    display: block;
-    padding: 0.125rem 0.625rem;
+    display: flex;
+    align-items: center;
+    min-height: 1.5rem;
+    padding: 0 0.625rem;
+    white-space: nowrap;
     border-radius: var(--radius-pill);
     font-size: 0.8125rem;
     color: var(--color-text-muted);
