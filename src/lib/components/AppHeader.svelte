@@ -1,19 +1,43 @@
 <script lang="ts">
   interface Props {
     versionLabel: string;
+    settingsOpen: boolean;
+    ontogglesettings: () => void;
   }
 
-  let { versionLabel }: Props = $props();
+  let { versionLabel, settingsOpen, ontogglesettings }: Props = $props();
 </script>
 
 <header class="header">
-  <h1 class="title">Plimsoll</h1>
-  {#if versionLabel !== ""}
-    <span class="version">{versionLabel}</span>
-  {/if}
+  <div class="identity">
+    <h1 class="title">Plimsoll</h1>
+    {#if versionLabel !== ""}
+      <span class="version">{versionLabel}</span>
+    {/if}
+  </div>
+  <button class="toggle" type="button" aria-expanded={settingsOpen} onclick={ontogglesettings}>
+    {settingsOpen ? "Back" : "Settings"}
+  </button>
 </header>
 
 <style>
+  .identity {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .toggle {
+    padding: 0.125rem var(--space-2);
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    background: transparent;
+    border: 0.0625rem solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+  }
+
   .header {
     display: flex;
     align-items: baseline;

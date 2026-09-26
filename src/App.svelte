@@ -1,13 +1,20 @@
 <script lang="ts">
   import type { UnlistenFn } from "@tauri-apps/api/event";
-  import AccurateModeToggle from "./lib/components/AccurateModeToggle.svelte";
   import AppHeader from "./lib/components/AppHeader.svelte";
   import LimitCard from "./lib/components/LimitCard.svelte";
+  import SettingsPanel from "./lib/components/SettingsPanel.svelte";
   import TokenCard from "./lib/components/TokenCard.svelte";
   import UsageBreakdown from "./lib/components/UsageBreakdown.svelte";
   import UsageChart from "./lib/components/UsageChart.svelte";
   import { hidePopup, readAppVersion } from "./lib/api/app";
-  import { loadUsage, onUsageUpdated, setAccurateMode, type UsageView } from "./lib/api/usage";
+  import {
+    loadUsage,
+    onUsageUpdated,
+    savePreferences,
+    setAccurateMode,
+    type PreferencesInput,
+    type UsageView,
+  } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
   import { statusMessage } from "./lib/usage/format";
   import { rangeName, type HistoryRange } from "./lib/usage/history";
@@ -17,6 +24,7 @@
   let loadFailed = $state(false);
   let toggleError = $state("");
   let range = $state<HistoryRange>("day");
+  let settingsOpen = $state(false);
 
   function accept(next: UsageView) {
     if (view === undefined || next.generatedAt >= view.generatedAt) {
@@ -70,6 +78,15 @@
     }
   }
 
+  async function changePreferences(preferences: PreferencesInput): Promise<boolean> {
+    try {
+      accept(await savePreferences(preferences));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       void hidePopup();
@@ -80,18 +97,34 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <main class="popup">
-  <AppHeader versionLabel={version === undefined ? "" : formatVersion(version)} />
+  <AppHeader
+    versionLabel={version === undefined ? "" : formatVersion(version)}
+    {settingsOpen}
+    ontogglesettings={() => {
+      settingsOpen = !settingsOpen;
+    }}
+  />
   {#if view === undefined}
     <p class="status" role="status">
       {loadFailed ? "Usage is unavailable right now." : "Loading usage…"}
     </p>
+  {:else if settingsOpen}
+    <SettingsPanel
+      preferences={view.preferences}
+      accurateMode={view.accurateMode}
+      onsave={changePreferences}
+      onaccuratechange={changeAccurateMode}
+    />
+    {#if toggleError !== ""}
+      <p class="error" role="alert">{toggleError}</p>
+    {/if}
   {:else}
     <p class="status" role="status">
       {statusMessage(view.accurateMode, view.status, view.limits.length > 0)}
     </p>
     {#if view.limits.length > 0}
       {#each view.limits as limit (limit.kind)}
-        <LimitCard {limit} now={view.generatedAt} />
+        <LimitCard {limit} thresholds={view.preferences.thresholds} now={view.generatedAt} />
       {/each}
     {:else}
       <TokenCard
@@ -111,10 +144,6 @@
     {/if}
     <UsageChart history={view.history} bind:range />
     <UsageBreakdown breakdown={view.breakdown[range]} rangeName={rangeName(range)} />
-    <AccurateModeToggle enabled={view.accurateMode} onchange={changeAccurateMode} />
-    {#if toggleError !== ""}
-      <p class="error" role="alert">{toggleError}</p>
-    {/if}
   {/if}
 </main>
 

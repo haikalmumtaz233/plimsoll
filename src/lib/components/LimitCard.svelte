@@ -1,13 +1,14 @@
 <script lang="ts">
-  import type { LimitView } from "../api/usage";
+  import type { LimitView, ThresholdsView } from "../api/usage";
   import { formatPercent, limitTitle, resetText } from "../usage/format";
 
   interface Props {
     limit: LimitView;
+    thresholds: ThresholdsView;
     now: number;
   }
 
-  let { limit, now }: Props = $props();
+  let { limit, thresholds, now }: Props = $props();
 
   const titleId = $derived(`limit-${limit.kind}`);
   const reset = $derived(resetText(limit.resetsAt, now));
@@ -21,8 +22,8 @@
     aria-labelledby={titleId}
     min="0"
     max="100"
-    low="50"
-    high="80"
+    low={thresholds.elevated}
+    high={thresholds.high}
     optimum="0"
     value={Math.min(Math.max(limit.percent, 0), 100)}
   >
