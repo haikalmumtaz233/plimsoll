@@ -27,12 +27,19 @@ export interface TokenView {
   windowEnd: number | null;
 }
 
+export interface HistoryView {
+  start: number;
+  bucketMillis: number;
+  tokens: number[];
+}
+
 export interface UsageView {
   accurateMode: boolean;
   status: OAuthStatus;
   limits: LimitView[];
   fiveHour: TokenView;
   weekly: TokenView;
+  history: HistoryView;
   generatedAt: number;
 }
 
