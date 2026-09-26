@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Selected options, the Save button and limit meters stay readable in Windows contrast themes.
+- The popup reflows without horizontal overflow at 200 percent text size, and small controls meet the 24 px minimum target size.
 
 ## [0.1.0] - 2026-09-26
 
