@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::domain::alerts::{self, Alert};
-use crate::domain::calibration::{self, Calibration, Estimate, Sample};
+use crate::domain::calibration::{self, Basis, Calibration, Estimate, Sample};
 use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, LimitSnapshot};
 use crate::domain::period::Window;
@@ -148,7 +148,9 @@ impl Engine {
                 estimates.push(Estimate {
                     kind,
                     utilization,
-                    samples: calibration.samples(),
+                    basis: Basis::Calibrated {
+                        samples: calibration.samples(),
+                    },
                 });
             }
         }
@@ -190,6 +192,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::Engine;
+    use crate::domain::calibration::Basis;
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::limit::{LimitKind, LimitSnapshot, STALE_AFTER, Utilization};
     use crate::domain::preferences::{PollInterval, Preferences};
@@ -364,7 +367,7 @@ mod tests {
         assert!(report.summary.limits.is_empty());
         assert_eq!(report.estimates.len(), 1);
         assert_eq!(report.estimates[0].kind, LimitKind::FiveHour);
-        assert_eq!(report.estimates[0].samples, 3);
+        assert_eq!(report.estimates[0].basis, Basis::Calibrated { samples: 3 });
         assert!((report.estimates[0].utilization.percent() - 42.0).abs() < 1e-9);
 
         engine.set_accurate_mode(true).expect("opt in again");

@@ -25,7 +25,10 @@ export interface LimitView {
 export interface EstimateView {
   kind: LimitKind;
   percent: number;
+  source: "calibration" | "manual";
   samples: number;
+  enteredPercent: number | null;
+  enteredAt: number | null;
 }
 
 export interface TokenView {

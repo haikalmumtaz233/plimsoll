@@ -3,6 +3,7 @@ use serde::Serialize;
 use super::engine::Report;
 use crate::domain::alerts::Alert;
 use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking};
+use crate::domain::calibration::{Basis, Estimate};
 use crate::domain::clock::Timestamp;
 use crate::domain::history::{BUCKET, HourlyHistory};
 use crate::domain::limit::LimitSnapshot;
@@ -25,7 +26,10 @@ pub struct LimitView {
 pub struct EstimateView {
     pub kind: &'static str,
     pub percent: f64,
+    pub source: &'static str,
     pub samples: usize,
+    pub entered_percent: Option<f64>,
+    pub entered_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -134,15 +138,7 @@ impl UsageView {
             status: report.status,
             preferences: preferences_view(report.preferences, language),
             limits: report.summary.limits.iter().map(limit_view).collect(),
-            estimates: report
-                .estimates
-                .iter()
-                .map(|estimate| EstimateView {
-                    kind: estimate.kind.name(),
-                    percent: estimate.utilization.percent(),
-                    samples: estimate.samples,
-                })
-                .collect(),
+            estimates: report.estimates.iter().map(estimate_view).collect(),
             five_hour: token_view(report.summary.five_hour),
             weekly: token_view(report.summary.weekly),
             history: history_view(&report.summary.history),
@@ -172,6 +168,29 @@ fn preferences_view(preferences: Preferences, language: Language) -> Preferences
         poll_choices: PollInterval::CHOICES.to_vec(),
         language: preferences.language.code(),
         resolved_language: language.code(),
+    }
+}
+
+fn estimate_view(estimate: &Estimate) -> EstimateView {
+    let (source, samples, entered_percent, entered_at) = match estimate.basis {
+        Basis::Calibrated { samples } => ("calibration", samples, None, None),
+        Basis::Manual {
+            entered_at,
+            entered,
+        } => (
+            "manual",
+            0,
+            Some(entered.percent()),
+            Some(entered_at.unix_millis()),
+        ),
+    };
+    EstimateView {
+        kind: estimate.kind.name(),
+        percent: estimate.utilization.percent(),
+        source,
+        samples,
+        entered_percent,
+        entered_at,
     }
 }
 
@@ -228,7 +247,7 @@ mod tests {
     use super::UsageView;
     use crate::app::engine::Report;
     use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking, Share};
-    use crate::domain::calibration::Estimate;
+    use crate::domain::calibration::{Basis, Estimate};
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
@@ -251,7 +270,7 @@ mod tests {
             estimates: vec![Estimate {
                 kind: LimitKind::SevenDay,
                 utilization: Utilization::from_percent(12.5).expect("valid percent"),
-                samples: 4,
+                basis: Basis::Calibrated { samples: 4 },
             }],
             summary: UsageSummary {
                 limits: vec![LimitSnapshot {
@@ -311,7 +330,14 @@ mod tests {
                     "percent": 42.5,
                     "resetsAt": window.end().unix_millis()
                 }],
-                "estimates": [{ "kind": "seven_day", "percent": 12.5, "samples": 4 }],
+                "estimates": [{
+                    "kind": "seven_day",
+                    "percent": 12.5,
+                    "source": "calibration",
+                    "samples": 4,
+                    "enteredPercent": null,
+                    "enteredAt": null
+                }],
                 "fiveHour": {
                     "tokens": 6,
                     "windowStart": window.start().unix_millis(),

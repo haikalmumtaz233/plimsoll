@@ -114,7 +114,14 @@ describe("indonesian formatting", () => {
 });
 
 describe("estimates", () => {
-  const estimate = { kind: "five_hour" as const, percent: 42.7, samples: 3 };
+  const estimate = {
+    kind: "five_hour" as const,
+    percent: 42.7,
+    source: "calibration" as const,
+    samples: 3,
+    enteredPercent: null,
+    enteredAt: null,
+  };
   const estimates = [estimate];
 
   it("finds the estimate for a limit", () => {
