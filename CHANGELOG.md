@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Breakdown of token usage by model and by project for the same range as the history chart.
 - Settings panel with configurable alert levels for the tray and meters, and the refresh interval for accurate mode.
 - Windows notifications when an official limit passes an alert level, once per level and limit window, also announced to screen readers in the popup.
+- English and Indonesian for the popup, tray tooltip, tray menu and notifications, following the Windows display language unless a language is chosen in Settings.
 
 ### Changed
 
