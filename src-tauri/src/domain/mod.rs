@@ -1,5 +1,6 @@
 pub mod aggregate;
 pub mod clock;
+pub mod history;
 pub mod limit;
 pub mod period;
 pub mod record;
