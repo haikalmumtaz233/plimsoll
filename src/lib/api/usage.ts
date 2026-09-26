@@ -67,6 +67,7 @@ export interface PreferencesView {
   pollMinutes: number;
   pollChoices: number[];
   language: LanguageChoice;
+  resolvedLanguage: "en" | "id";
 }
 
 export interface PreferencesInput extends ThresholdsView {

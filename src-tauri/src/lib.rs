@@ -2,6 +2,7 @@ pub mod app;
 mod commands;
 pub mod domain;
 mod error;
+pub mod i18n;
 pub mod sources;
 pub mod store;
 pub mod toast;

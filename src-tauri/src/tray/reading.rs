@@ -1,15 +1,13 @@
 use super::palette::Tone;
-use crate::domain::clock::{Span, Timestamp};
-use crate::domain::limit::{LimitKind, LimitSnapshot};
+use crate::domain::clock::Timestamp;
+use crate::domain::limit::LimitSnapshot;
 use crate::domain::severity::{Severity, Thresholds};
 use crate::domain::summary::UsageSummary;
+use crate::i18n::Text;
 
 const APP_NAME: &str = "Plimsoll";
 const IDLE_LABEL: &str = "-";
 const MAX_PERCENT_LABEL: f64 = 999.0;
-const MILLIS_PER_MINUTE: i64 = 60_000;
-const MINUTES_PER_HOUR: i64 = 60;
-const MINUTES_PER_DAY: i64 = 1_440;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrayReading {
@@ -53,19 +51,29 @@ impl TrayReading {
     }
 
     #[must_use]
-    pub fn tooltip(&self, now: Timestamp) -> String {
+    pub fn tooltip(&self, text: Text, now: Timestamp) -> String {
         let detail = match self {
-            Self::Tokens(count) => {
-                format!("{} tokens in this 5-hour window", grouped_thousands(*count))
-            }
+            Self::Tokens(count) => text.tokens_in_window(*count),
             Self::Limits(limits) if !limits.is_empty() => limits
                 .iter()
-                .map(|limit| limit_line(limit, now))
+                .map(|limit| {
+                    text.limit_line(
+                        limit.kind,
+                        &whole_percent(limit.utilization.percent()),
+                        limit.resets_at.map(|resets_at| resets_at - now),
+                    )
+                })
                 .collect::<Vec<_>>()
-                .join("\n"),
-            Self::Idle | Self::Limits(_) => "No usage in the current 5-hour window".to_owned(),
+                .join(
+                    "
+",
+                ),
+            Self::Idle | Self::Limits(_) => text.no_usage().to_owned(),
         };
-        format!("{APP_NAME}\n{detail}")
+        format!(
+            "{APP_NAME}
+{detail}"
+        )
     }
 }
 
@@ -92,69 +100,23 @@ fn compact_tokens(count: u64) -> String {
     }
 }
 
-fn grouped_thousands(count: u64) -> String {
-    let digits = count.to_string();
-    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
-    for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index).is_multiple_of(3) {
-            grouped.push(',');
-        }
-        grouped.push(digit);
-    }
-    grouped
-}
-
-#[must_use]
-pub const fn limit_name(kind: LimitKind) -> &'static str {
-    match kind {
-        LimitKind::FiveHour => "5-hour",
-        LimitKind::SevenDay => "Weekly",
-    }
-}
-
-fn limit_line(limit: &LimitSnapshot, now: Timestamp) -> String {
-    let name = limit_name(limit.kind);
-    let percent = whole_percent(limit.utilization.percent());
-    match limit.resets_at {
-        Some(resets_at) if resets_at > now => {
-            format!(
-                "{name}: {percent}%, resets in {}",
-                countdown(resets_at - now)
-            )
-        }
-        Some(_) => format!("{name}: {percent}%, resetting now"),
-        None => format!("{name}: {percent}%"),
-    }
-}
-
-#[must_use]
-pub fn countdown(span: Span) -> String {
-    let minutes = span.millis().max(0) / MILLIS_PER_MINUTE;
-    let days = minutes / MINUTES_PER_DAY;
-    let hours = minutes % MINUTES_PER_DAY / MINUTES_PER_HOUR;
-    let rest = minutes % MINUTES_PER_HOUR;
-    match (days, hours) {
-        (0, 0) if rest == 0 => "under a minute".to_owned(),
-        (0, 0) => format!("{rest}m"),
-        (0, _) => format!("{hours}h {rest}m"),
-        _ => format!("{days}d {hours}h"),
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{TrayReading, compact_tokens, countdown, grouped_thousands};
+    use super::{TrayReading, compact_tokens};
     use crate::domain::breakdown::Breakdowns;
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
+    use crate::domain::preferences::Language;
     use crate::domain::severity::{Severity, Thresholds};
     use crate::domain::summary::{TokenWindow, UsageSummary};
     use crate::domain::tokens::TokenCounts;
+    use crate::i18n::Text;
     use crate::tray::glyph::glyph;
     use crate::tray::palette::Tone;
 
     const NOW: Timestamp = Timestamp::from_unix_millis(1_790_300_000_000);
+    const EN: Text = Text::new(Language::English);
     const MINUTE: i64 = 60_000;
     const HOUR: i64 = 60 * MINUTE;
     const DAY: i64 = 24 * HOUR;
@@ -216,7 +178,7 @@ mod tests {
         assert_eq!(reading.label(), "-");
         assert_eq!(reading.tone(Thresholds::DEFAULT), Tone::Neutral);
         assert_eq!(
-            reading.tooltip(NOW),
+            reading.tooltip(EN, NOW),
             "Plimsoll\nNo usage in the current 5-hour window"
         );
         assert_eq!(TrayReading::Limits(Vec::new()).label(), "-");
@@ -228,7 +190,7 @@ mod tests {
         assert_eq!(reading.label(), "241k");
         assert_eq!(reading.tone(Thresholds::DEFAULT), Tone::Neutral);
         assert_eq!(
-            reading.tooltip(NOW),
+            reading.tooltip(EN, NOW),
             "Plimsoll\n241,532 tokens in this 5-hour window"
         );
     }
@@ -247,14 +209,6 @@ mod tests {
         for (count, expected) in cases {
             assert_eq!(compact_tokens(count), expected);
         }
-    }
-
-    #[test]
-    fn groups_thousands_with_commas() {
-        assert_eq!(grouped_thousands(0), "0");
-        assert_eq!(grouped_thousands(999), "999");
-        assert_eq!(grouped_thousands(1_000), "1,000");
-        assert_eq!(grouped_thousands(12_345_678), "12,345,678");
     }
 
     #[test]
@@ -293,7 +247,7 @@ mod tests {
             ),
         ]);
         assert_eq!(
-            reading.tooltip(NOW),
+            reading.tooltip(EN, NOW),
             "Plimsoll\n5-hour: 42%, resets in 2h 15m\nWeekly: 14%, resets in 3d 4h"
         );
     }
@@ -305,17 +259,9 @@ mod tests {
             limit(LimitKind::SevenDay, 3.0, None),
         ]);
         assert_eq!(
-            reading.tooltip(NOW),
+            reading.tooltip(EN, NOW),
             "Plimsoll\n5-hour: 100%, resetting now\nWeekly: 3%"
         );
-    }
-
-    #[test]
-    fn countdowns_pick_the_two_largest_units() {
-        assert_eq!(countdown(Span::from_millis(59_999)), "under a minute");
-        assert_eq!(countdown(Span::from_millis(45 * MINUTE)), "45m");
-        assert_eq!(countdown(Span::hours(5)), "5h 0m");
-        assert_eq!(countdown(Span::from_millis(6 * DAY + 23 * HOUR)), "6d 23h");
     }
 
     #[test]

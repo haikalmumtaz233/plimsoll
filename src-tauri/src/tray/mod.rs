@@ -11,10 +11,12 @@ use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Runtime};
 
-use crate::app::clock;
+use crate::app::{clock, locale};
 use crate::domain::clock::Timestamp;
+use crate::domain::preferences::LanguageChoice;
 use crate::domain::severity::Thresholds;
 use crate::error::AppError;
+use crate::i18n::Text;
 use menu::MenuAction;
 use reading::TrayReading;
 
@@ -29,7 +31,7 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon_image(app, &idle, Thresholds::DEFAULT)?)
-        .tooltip(idle.tooltip(clock::now()))
+        .tooltip(idle.tooltip(locale::text(LanguageChoice::System), clock::now()))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| handle_menu_event(app, &event))
@@ -42,11 +44,12 @@ pub fn show_reading<R: Runtime>(
     app: &AppHandle<R>,
     reading: &TrayReading,
     thresholds: Thresholds,
+    text: Text,
     now: Timestamp,
 ) -> Result<(), AppError> {
     let tray = app.tray_by_id(TRAY_ID).ok_or(AppError::MissingTray)?;
     tray.set_icon(Some(icon_image(app, reading, thresholds)?))?;
-    tray.set_tooltip(Some(reading.tooltip(now)))?;
+    tray.set_tooltip(Some(reading.tooltip(text, now)))?;
     Ok(())
 }
 

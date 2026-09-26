@@ -10,13 +10,14 @@ use notify::RecommendedWatcher;
 use tauri::async_runtime::{self, JoinHandle};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
-use super::clock;
 use super::engine::{Engine, Report};
 use super::view::{AlertView, UsageView};
+use super::{clock, locale};
 use crate::domain::alerts::Alert;
 use crate::domain::clock::Timestamp;
 use crate::domain::preferences::Preferences;
 use crate::error::AppError;
+use crate::i18n::Text;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
 use crate::sources::oauth::poll::{self, PollResult};
@@ -67,7 +68,9 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
 
 pub fn current_view<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     let now = clock::now();
-    report(app, now).map(|report| UsageView::from_report(&report, now))
+    report(app, now).map(|report| {
+        UsageView::from_report(&report, locale::resolve(report.preferences.language), now)
+    })
 }
 
 pub fn set_accurate_mode<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<UsageView> {
@@ -218,19 +221,21 @@ async fn poll_oauth<R: Runtime>(app: AppHandle<R>, schedule: PollSchedule) {
 
 fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
     let now = clock::now();
-    let alerts = with_engine(app, |engine| {
+    let outcome = with_engine(app, |engine| {
         engine.record_oauth(result, now)?;
-        engine.take_alerts(now)
-    })
-    .unwrap_or_default();
+        Ok((engine.take_alerts(now)?, engine.preferences()?.language))
+    });
     publish(app);
-    for alert in &alerts {
-        announce(app, alert, now);
+    if let Some((alerts, language)) = outcome {
+        let text = locale::text(language);
+        for alert in &alerts {
+            announce(app, alert, text, now);
+        }
     }
 }
 
-fn announce<R: Runtime>(app: &AppHandle<R>, alert: &Alert, now: Timestamp) {
-    let message = toast::message(alert, now);
+fn announce<R: Runtime>(app: &AppHandle<R>, alert: &Alert, text: Text, now: Timestamp) {
+    let message = toast::message(alert, text, now);
     if let Err(error) = toast::show(app, &message) {
         eprintln!("failed to show a notification: {error}");
     }
@@ -242,12 +247,19 @@ fn announce<R: Runtime>(app: &AppHandle<R>, alert: &Alert, now: Timestamp) {
 fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     let now = clock::now();
     let report = report(app, now)?;
-    let view = UsageView::from_report(&report, now);
+    let language = locale::resolve(report.preferences.language);
+    let view = UsageView::from_report(&report, language, now);
     if let Err(error) = app.emit(USAGE_EVENT, &view) {
         eprintln!("failed to publish usage: {error}");
     }
     let reading = TrayReading::from_summary(&report.summary);
-    if let Err(error) = tray::show_reading(app, &reading, report.preferences.thresholds, now) {
+    if let Err(error) = tray::show_reading(
+        app,
+        &reading,
+        report.preferences.thresholds,
+        Text::new(language),
+        now,
+    ) {
         eprintln!("failed to update the tray icon: {error}");
     }
     Some(view)

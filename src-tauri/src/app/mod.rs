@@ -1,5 +1,6 @@
 pub mod clock;
 pub mod engine;
+pub mod locale;
 pub mod runtime;
 pub mod view;
 
