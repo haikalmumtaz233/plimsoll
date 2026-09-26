@@ -78,7 +78,8 @@ fn binding_limit(limits: &[LimitSnapshot]) -> Option<&LimitSnapshot> {
     })
 }
 
-fn whole_percent(percent: f64) -> String {
+#[must_use]
+pub fn whole_percent(percent: f64) -> String {
     format!("{:.0}", percent.floor().min(MAX_PERCENT_LABEL))
 }
 
@@ -103,11 +104,16 @@ fn grouped_thousands(count: u64) -> String {
     grouped
 }
 
-fn limit_line(limit: &LimitSnapshot, now: Timestamp) -> String {
-    let name = match limit.kind {
+#[must_use]
+pub const fn limit_name(kind: LimitKind) -> &'static str {
+    match kind {
         LimitKind::FiveHour => "5-hour",
         LimitKind::SevenDay => "Weekly",
-    };
+    }
+}
+
+fn limit_line(limit: &LimitSnapshot, now: Timestamp) -> String {
+    let name = limit_name(limit.kind);
     let percent = whole_percent(limit.utilization.percent());
     match limit.resets_at {
         Some(resets_at) if resets_at > now => {
@@ -121,7 +127,8 @@ fn limit_line(limit: &LimitSnapshot, now: Timestamp) -> String {
     }
 }
 
-fn countdown(span: Span) -> String {
+#[must_use]
+pub fn countdown(span: Span) -> String {
     let minutes = span.millis().max(0) / MILLIS_PER_MINUTE;
     let days = minutes / MINUTES_PER_DAY;
     let hours = minutes % MINUTES_PER_DAY / MINUTES_PER_HOUR;

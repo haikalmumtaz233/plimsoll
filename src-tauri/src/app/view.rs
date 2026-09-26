@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use super::engine::Report;
+use crate::domain::alerts::Alert;
 use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking};
 use crate::domain::clock::Timestamp;
 use crate::domain::history::{BUCKET, HourlyHistory};
@@ -9,6 +10,7 @@ use crate::domain::period::Window;
 use crate::domain::preferences::{PollInterval, Preferences};
 use crate::domain::summary::TokenWindow;
 use crate::sources::oauth::status::OAuthStatus;
+use crate::toast::Message;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,6 +78,27 @@ pub struct PreferencesView {
     pub thresholds: ThresholdsView,
     pub poll_minutes: u8,
     pub poll_choices: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlertView {
+    pub kind: &'static str,
+    pub severity: &'static str,
+    pub title: String,
+    pub body: String,
+}
+
+impl AlertView {
+    #[must_use]
+    pub fn new(alert: &Alert, message: Message) -> Self {
+        Self {
+            kind: alert.kind.name(),
+            severity: alert.severity.name(),
+            title: message.title,
+            body: message.body,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

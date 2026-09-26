@@ -9,6 +9,7 @@ use crate::tray;
 
 pub fn run() -> Result<(), AppError> {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             tray::install(app.handle())?;
             runtime::start(app.handle())?;
