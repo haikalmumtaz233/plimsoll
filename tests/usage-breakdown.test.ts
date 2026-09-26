@@ -1,3 +1,4 @@
+import { en, id } from "../src/lib/i18n/messages";
 import { describe, expect, it } from "vitest";
 import { formatShare, modelLabel, shareRows } from "../src/lib/usage/breakdown";
 
@@ -25,7 +26,7 @@ describe("shareRows", () => {
   };
 
   it("labels models and adds an other row", () => {
-    expect(shareRows(ranking, "models")).toEqual([
+    expect(shareRows(ranking, "models", en)).toEqual([
       { key: "claude-opus-5", label: "Opus 5", tokens: 60, fraction: 0.6 },
       { key: "claude-sonnet-5", label: "Sonnet 5", tokens: 30, fraction: 0.3 },
       { key: "\u0000other", label: "Other", tokens: 10, fraction: 0.1 },
@@ -33,12 +34,12 @@ describe("shareRows", () => {
   });
 
   it("keeps project names as they are", () => {
-    const rows = shareRows({ top: [{ name: "plimsoll", tokens: 5 }], other: 0 }, "projects");
+    const rows = shareRows({ top: [{ name: "plimsoll", tokens: 5 }], other: 0 }, "projects", en);
     expect(rows).toEqual([{ key: "plimsoll", label: "plimsoll", tokens: 5, fraction: 1 }]);
   });
 
   it("returns nothing without usage", () => {
-    expect(shareRows({ top: [], other: 0 }, "models")).toEqual([]);
+    expect(shareRows({ top: [], other: 0 }, "models", en)).toEqual([]);
   });
 });
 
@@ -48,5 +49,12 @@ describe("formatShare", () => {
     expect(formatShare(1)).toBe("100%");
     expect(formatShare(0.001)).toBe("<1%");
     expect(formatShare(0)).toBe("0%");
+  });
+});
+
+describe("indonesian breakdown text", () => {
+  it("names the other row in indonesian", () => {
+    const rows = shareRows({ top: [{ name: "a", tokens: 1 }], other: 1 }, "projects", id);
+    expect(rows.at(-1)?.label).toBe("Lainnya");
   });
 });

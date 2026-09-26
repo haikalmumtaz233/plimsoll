@@ -1,4 +1,5 @@
 import type { HistoryView } from "../api/usage";
+import type { Messages } from "../i18n/messages";
 
 export interface Bar {
   start: number;
@@ -11,13 +12,13 @@ export type HistoryRange = "day" | "week";
 export const HOURS_PER_DAY_VIEW = 24;
 export const DAYS_PER_WEEK_VIEW = 7;
 
-const compactFormat = new Intl.NumberFormat("en-US", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
-
-export function hourlyBars(history: HistoryView, count: number, timeZone?: string): Bar[] {
-  const hourFormat = new Intl.DateTimeFormat("en-GB", {
+export function hourlyBars(
+  history: HistoryView,
+  count: number,
+  locale: string,
+  timeZone?: string,
+): Bar[] {
+  const hourFormat = new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
@@ -30,14 +31,19 @@ export function hourlyBars(history: HistoryView, count: number, timeZone?: strin
   });
 }
 
-export function dailyBars(history: HistoryView, days: number, timeZone?: string): Bar[] {
+export function dailyBars(
+  history: HistoryView,
+  days: number,
+  locale: string,
+  timeZone?: string,
+): Bar[] {
   const dayKey = new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     timeZone,
   });
-  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone });
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone });
   const bars: Bar[] = [];
   let currentKey = "";
   history.tokens.forEach((tokens, index) => {
@@ -54,8 +60,8 @@ export function dailyBars(history: HistoryView, days: number, timeZone?: string)
   return bars.slice(-days);
 }
 
-export function rangeName(range: HistoryRange): string {
-  return range === "day" ? "Last 24 hours" : "Last 7 days";
+export function rangeName(range: HistoryRange, messages: Messages): string {
+  return messages.history.rangeNames[range];
 }
 
 export function niceCeiling(value: number): number {
@@ -67,8 +73,10 @@ export function niceCeiling(value: number): number {
   return step * magnitude;
 }
 
-export function compactTokens(tokens: number): string {
-  return compactFormat.format(tokens);
+export function compactTokens(tokens: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(
+    tokens,
+  );
 }
 
 export function totalTokens(bars: readonly Bar[]): number {

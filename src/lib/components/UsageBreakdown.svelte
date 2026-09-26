@@ -1,35 +1,37 @@
 <script lang="ts">
   import type { BreakdownView } from "../api/usage";
+  import type { Messages } from "../i18n/messages";
   import { formatShare, shareRows, type BreakdownKind } from "../usage/breakdown";
-  import { compactTokens } from "../usage/history";
+  import { compactTokens, type HistoryRange } from "../usage/history";
   import SegmentedControl from "./SegmentedControl.svelte";
 
   interface Props {
     breakdown: BreakdownView;
-    rangeName: string;
+    range: HistoryRange;
+    messages: Messages;
   }
 
-  let { breakdown, rangeName }: Props = $props();
+  let { breakdown, range, messages }: Props = $props();
 
-  const KINDS: readonly { value: BreakdownKind; label: string }[] = [
-    { value: "models", label: "Model" },
-    { value: "projects", label: "Project" },
-  ];
+  const kinds: readonly { value: BreakdownKind; label: string }[] = $derived([
+    { value: "models", label: messages.breakdown.model },
+    { value: "projects", label: messages.breakdown.project },
+  ]);
   const TRACK_WIDTH = 100;
   const MIN_FILL = 1;
 
   let kind = $state<BreakdownKind>("models");
 
-  const rows = $derived(shareRows(breakdown[kind], kind));
+  const rows = $derived(shareRows(breakdown[kind], kind, messages));
 </script>
 
 <section class="breakdown" aria-labelledby="breakdown-title">
   <div class="heading">
-    <h2 class="title" id="breakdown-title">Breakdown</h2>
+    <h2 class="title" id="breakdown-title">{messages.breakdown.title}</h2>
     <SegmentedControl
       name="breakdown-kind"
-      legend="Group by"
-      choices={KINDS}
+      legend={messages.breakdown.groupBy}
+      choices={kinds}
       value={kind}
       onchange={(next: BreakdownKind) => {
         kind = next;
@@ -37,14 +39,17 @@
     />
   </div>
   {#if rows.length === 0}
-    <p class="muted">No usage in the {rangeName.toLowerCase()}.</p>
+    <p class="muted">{messages.breakdown.noUsage[range]}</p>
   {:else}
     <ul class="rows">
       {#each rows as row (row.key)}
         <li class="row">
           <span class="label" title={row.label}>{row.label}</span>
           <span class="value">
-            {formatShare(row.fraction)} · {compactTokens(row.tokens)} tokens
+            {messages.breakdown.share(
+              formatShare(row.fraction),
+              compactTokens(row.tokens, messages.intlLocale),
+            )}
           </span>
           <svg
             class="share"

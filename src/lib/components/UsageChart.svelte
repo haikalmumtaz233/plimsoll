@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { HistoryView } from "../api/usage";
+  import type { Messages } from "../i18n/messages";
   import SegmentedControl from "./SegmentedControl.svelte";
   import { formatTokens } from "../usage/format";
   import {
@@ -17,10 +18,11 @@
 
   interface Props {
     history: HistoryView;
+    messages: Messages;
     range?: HistoryRange;
   }
 
-  let { history, range = $bindable("day") }: Props = $props();
+  let { history, messages, range = $bindable("day") }: Props = $props();
 
   const WIDTH = 320;
   const HEIGHT = 132;
@@ -35,23 +37,23 @@
   const PLOT_WIDTH = WIDTH - LEFT - RIGHT;
   const PLOT_HEIGHT = HEIGHT - TOP - BOTTOM;
   const BASELINE = TOP + PLOT_HEIGHT;
-  const RANGES: readonly { value: HistoryRange; label: string }[] = [
-    { value: "day", label: "24h" },
-    { value: "week", label: "7d" },
-  ];
+  const ranges: readonly { value: HistoryRange; label: string }[] = $derived([
+    { value: "day", label: messages.history.choices.day },
+    { value: "week", label: messages.history.choices.week },
+  ]);
 
   let active = $state<number | undefined>(undefined);
 
   const bars = $derived(
     range === "day"
-      ? hourlyBars(history, HOURS_PER_DAY_VIEW)
-      : dailyBars(history, DAYS_PER_WEEK_VIEW),
+      ? hourlyBars(history, HOURS_PER_DAY_VIEW, messages.intlLocale)
+      : dailyBars(history, DAYS_PER_WEEK_VIEW, messages.intlLocale),
   );
   const ceiling = $derived(niceCeiling(Math.max(0, ...bars.map((bar) => bar.tokens))));
   const ticks = $derived(ceiling === 0 ? [0] : [0, ceiling / 2, ceiling]);
   const slot = $derived(bars.length === 0 ? 0 : PLOT_WIDTH / bars.length);
   const barWidth = $derived(Math.min(MAX_BAR, Math.max(1, slot - GAP)));
-  const rangeName = $derived(nameOfRange(range));
+  const rangeName = $derived(nameOfRange(range, messages));
   const total = $derived(totalTokens(bars));
   const peak = $derived(
     bars.reduce<Bar | undefined>(
@@ -62,13 +64,18 @@
   const activeBar = $derived(active === undefined ? undefined : bars[active]);
   const readout = $derived(
     activeBar === undefined
-      ? `${rangeName} · ${formatTokens(total)}`
-      : `${activeBar.label} · ${formatTokens(activeBar.tokens)}`,
+      ? `${rangeName} · ${formatTokens(total, messages)}`
+      : `${activeBar.label} · ${formatTokens(activeBar.tokens, messages)}`,
   );
   const summary = $derived(
     peak === undefined || peak.tokens === 0
-      ? `${rangeName}: no token usage.`
-      : `${rangeName}: ${formatTokens(total)} in total, peak ${formatTokens(peak.tokens)} at ${peak.label}.`,
+      ? messages.history.noUsage(rangeName)
+      : messages.history.summary(
+          rangeName,
+          formatTokens(total, messages),
+          formatTokens(peak.tokens, messages),
+          peak.label,
+        ),
   );
 
   function yOf(tokens: number): number {
@@ -101,11 +108,11 @@
 
 <section class="chart" aria-labelledby="history-title">
   <div class="heading">
-    <h2 class="title" id="history-title">Token history</h2>
+    <h2 class="title" id="history-title">{messages.history.title}</h2>
     <SegmentedControl
       name="history-range"
-      legend="Range"
-      choices={RANGES}
+      legend={messages.history.rangeLegend}
+      choices={ranges}
       value={range}
       onchange={(next: HistoryRange) => {
         range = next;
@@ -123,7 +130,7 @@
     {#each ticks as tick (tick)}
       <line class="grid" x1={LEFT} x2={WIDTH - RIGHT} y1={yOf(tick)} y2={yOf(tick)} />
       <text class="axis" x={LEFT - 4} y={yOf(tick)} text-anchor="end" dominant-baseline="middle">
-        {compactTokens(tick)}
+        {compactTokens(tick, messages.intlLocale)}
       </text>
     {/each}
     {#each bars as bar, index (bar.start)}
@@ -145,19 +152,21 @@
     {/each}
   </svg>
   <details class="data">
-    <summary>Show data</summary>
+    <summary>{messages.history.showData}</summary>
     <table>
       <thead>
         <tr>
-          <th scope="col">{range === "day" ? "Hour" : "Day"}</th>
-          <th scope="col" class="number">Tokens</th>
+          <th scope="col">
+            {range === "day" ? messages.history.hourColumn : messages.history.dayColumn}
+          </th>
+          <th scope="col" class="number">{messages.history.tokensColumn}</th>
         </tr>
       </thead>
       <tbody>
         {#each bars as bar (bar.start)}
           <tr>
             <td>{bar.label}</td>
-            <td class="number">{formatTokens(bar.tokens)}</td>
+            <td class="number">{formatTokens(bar.tokens, messages)}</td>
           </tr>
         {/each}
       </tbody>

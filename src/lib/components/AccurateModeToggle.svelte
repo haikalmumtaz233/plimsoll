@@ -1,10 +1,13 @@
 <script lang="ts">
+  import type { Messages } from "../i18n/messages";
+
   interface Props {
+    messages: Messages;
     enabled: boolean;
     onchange: (enabled: boolean) => Promise<boolean>;
   }
 
-  let { enabled, onchange }: Props = $props();
+  let { messages, enabled, onchange }: Props = $props();
 
   let busy = $state(false);
 
@@ -29,11 +32,10 @@
       aria-describedby="accurate-mode-help"
       onchange={handleChange}
     />
-    <label for="accurate-mode">Accurate mode</label>
+    <label for="accurate-mode">{messages.accurate.label}</label>
   </div>
   <p id="accurate-mode-help" class="help">
-    Reads the Claude Code sign-in on this PC to show official percentages from Anthropic. The token
-    stays in memory and is never saved or sent anywhere else.
+    {messages.accurate.help}
   </p>
 </div>
 

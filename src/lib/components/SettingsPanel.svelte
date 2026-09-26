@@ -1,17 +1,21 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { PreferencesInput, PreferencesView } from "../api/usage";
+  import type { LanguageChoice, PreferencesInput, PreferencesView } from "../api/usage";
+  import type { Messages } from "../i18n/messages";
   import { intervalLabel, thresholdError } from "../settings/preferences";
   import AccurateModeToggle from "./AccurateModeToggle.svelte";
 
   interface Props {
+    messages: Messages;
     preferences: PreferencesView;
     accurateMode: boolean;
     onsave: (preferences: PreferencesInput) => Promise<boolean>;
     onaccuratechange: (enabled: boolean) => Promise<boolean>;
   }
 
-  let { preferences, accurateMode, onsave, onaccuratechange }: Props = $props();
+  let { messages, preferences, accurateMode, onsave, onaccuratechange }: Props = $props();
+
+  const LANGUAGES: readonly LanguageChoice[] = ["system", "en", "id"];
 
   const initial = untrack(() => preferences);
 
@@ -32,7 +36,7 @@
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     saved = false;
-    const problem = thresholdError({ elevated, high, critical });
+    const problem = thresholdError({ elevated, high, critical }, messages);
     if (problem !== null) {
       error = problem;
       return;
@@ -44,33 +48,35 @@
     if (ok) {
       saved = true;
     } else {
-      error = "Could not save settings. Try again.";
+      error = messages.settings.saveFailed;
     }
   }
 </script>
 
 <section class="settings" aria-labelledby="settings-title">
-  <h2 class="heading" id="settings-title" tabindex="-1" bind:this={heading}>Settings</h2>
+  <h2 class="heading" id="settings-title" tabindex="-1" bind:this={heading}>
+    {messages.settings.title}
+  </h2>
   <form class="form" onsubmit={handleSubmit} novalidate>
     <fieldset class="levels" aria-describedby="levels-help">
-      <legend class="legend">Alert levels</legend>
-      <p id="levels-help" class="help">The tray color changes at these percentages of a limit.</p>
+      <legend class="legend">{messages.settings.alertLevels}</legend>
+      <p id="levels-help" class="help">{messages.settings.alertHelp}</p>
       <label class="level">
-        <span>Warning at</span>
+        <span>{messages.settings.warningAt}</span>
         <span class="field">
           <input type="number" min="1" max="100" step="1" required bind:value={elevated} />
           <span aria-hidden="true">%</span>
         </span>
       </label>
       <label class="level">
-        <span>High at</span>
+        <span>{messages.settings.highAt}</span>
         <span class="field">
           <input type="number" min="1" max="100" step="1" required bind:value={high} />
           <span aria-hidden="true">%</span>
         </span>
       </label>
       <label class="level">
-        <span>Critical at</span>
+        <span>{messages.settings.criticalAt}</span>
         <span class="field">
           <input type="number" min="1" max="100" step="1" required bind:value={critical} />
           <span aria-hidden="true">%</span>
@@ -78,23 +84,33 @@
       </label>
     </fieldset>
     <div class="interval">
-      <label class="legend" for="poll-interval">Refresh official usage</label>
+      <label class="legend" for="poll-interval">{messages.settings.refresh}</label>
       <select id="poll-interval" aria-describedby="interval-help" bind:value={pollMinutes}>
         {#each preferences.pollChoices as minutes (minutes)}
-          <option value={minutes}>{intervalLabel(minutes)}</option>
+          <option value={minutes}>{intervalLabel(minutes, messages)}</option>
         {/each}
       </select>
-      <p id="interval-help" class="help">Used while accurate mode is on.</p>
+      <p id="interval-help" class="help">{messages.settings.refreshHelp}</p>
+    </div>
+    <div class="interval">
+      <label class="legend" for="language">{messages.settings.language}</label>
+      <select id="language" bind:value={language}>
+        {#each LANGUAGES as choice (choice)}
+          <option value={choice} lang={choice === "system" ? undefined : choice}>
+            {messages.settings.languageNames[choice]}
+          </option>
+        {/each}
+      </select>
     </div>
     {#if error !== ""}
       <p class="error" role="alert">{error}</p>
     {/if}
     <div class="actions">
-      <button type="submit" disabled={busy}>Save</button>
-      <p class="saved" role="status">{saved ? "Saved." : ""}</p>
+      <button type="submit" disabled={busy}>{messages.settings.save}</button>
+      <p class="saved" role="status">{saved ? messages.settings.saved : ""}</p>
     </div>
   </form>
-  <AccurateModeToggle enabled={accurateMode} onchange={onaccuratechange} />
+  <AccurateModeToggle {messages} enabled={accurateMode} onchange={onaccuratechange} />
 </section>
 
 <style>

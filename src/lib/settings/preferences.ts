@@ -1,3 +1,5 @@
+import type { Messages } from "../i18n/messages";
+
 export interface ThresholdDraft {
   elevated: number;
   high: number;
@@ -7,20 +9,20 @@ export interface ThresholdDraft {
 const MIN_PERCENT = 1;
 const MAX_PERCENT = 100;
 
-export function thresholdError(draft: ThresholdDraft): string | null {
+export function thresholdError(draft: ThresholdDraft, messages: Messages): string | null {
   const values = [draft.elevated, draft.high, draft.critical];
   const inRange = values.every(
     (value) => Number.isInteger(value) && value >= MIN_PERCENT && value <= MAX_PERCENT,
   );
   if (!inRange) {
-    return "Use whole numbers from 1 to 100.";
+    return messages.settings.wholeNumbers;
   }
   if (!(draft.elevated < draft.high && draft.high < draft.critical)) {
-    return "Each level must be higher than the one before it.";
+    return messages.settings.rising;
   }
   return null;
 }
 
-export function intervalLabel(minutes: number): string {
-  return minutes === 1 ? "Every minute" : `Every ${String(minutes)} minutes`;
+export function intervalLabel(minutes: number, messages: Messages): string {
+  return messages.settings.interval(minutes);
 }
