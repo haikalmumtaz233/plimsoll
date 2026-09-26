@@ -83,6 +83,16 @@ export interface Messages {
   accurate: {
     label: string;
     help: string;
+    confirmTitle: string;
+    risks: {
+      token: string;
+      storage: string;
+      endpoint: string;
+      unofficial: string;
+      requests: (minutes: number) => string;
+    };
+    confirm: string;
+    cancel: string;
   };
 }
 
@@ -173,6 +183,21 @@ export const en: Messages = {
   accurate: {
     label: "Accurate mode",
     help: "Reads the Claude Code sign-in on this PC to show official percentages from Anthropic. The token stays in memory and is never saved or sent anywhere else.",
+    confirmTitle: "Before you turn on accurate mode",
+    risks: {
+      token:
+        "Plimsoll reads the sign-in token that Claude Code saved on this PC and uses it only to ask Anthropic for your usage.",
+      storage:
+        "The token stays in memory. It is never written to disk, logged or sent anywhere else.",
+      endpoint:
+        "The usage endpoint is undocumented. Anthropic may change or block it at any time, and Plimsoll then falls back to local estimates.",
+      unofficial:
+        "This is not an official Anthropic feature. Turn it on only if you are comfortable with that.",
+      requests: (minutes) =>
+        `While it is on, Plimsoll asks for your usage ${minutes === 1 ? "once a minute" : `every ${String(minutes)} minutes`}. You can turn it off at any time.`,
+    },
+    confirm: "Turn on",
+    cancel: "Cancel",
   },
 };
 
@@ -266,6 +291,21 @@ export const id: Messages = {
   accurate: {
     label: "Mode akurat",
     help: "Membaca login Claude Code di PC ini untuk menampilkan persentase resmi dari Anthropic. Token hanya ada di memori dan tidak pernah disimpan atau dikirim ke tempat lain.",
+    confirmTitle: "Sebelum mengaktifkan mode akurat",
+    risks: {
+      token:
+        "Plimsoll membaca token login yang disimpan Claude Code di PC ini dan hanya memakainya untuk meminta data pemakaian Anda ke Anthropic.",
+      storage:
+        "Token hanya ada di memori. Token tidak pernah ditulis ke disk, dicatat di log, atau dikirim ke tempat lain.",
+      endpoint:
+        "Endpoint pemakaian ini tidak terdokumentasi. Anthropic bisa mengubah atau memblokirnya kapan saja, dan Plimsoll akan kembali ke estimasi lokal.",
+      unofficial:
+        "Ini bukan fitur resmi Anthropic. Aktifkan hanya jika Anda nyaman dengan hal itu.",
+      requests: (minutes) =>
+        `Selama aktif, Plimsoll meminta data pemakaian ${minutes === 1 ? "setiap menit" : `setiap ${String(minutes)} menit`}. Anda bisa mematikannya kapan saja.`,
+    },
+    confirm: "Aktifkan",
+    cancel: "Batal",
   },
 };
 
