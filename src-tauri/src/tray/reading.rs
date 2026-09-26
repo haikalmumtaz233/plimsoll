@@ -2,6 +2,7 @@ use super::palette::Tone;
 use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, LimitSnapshot};
 use crate::domain::severity::Severity;
+use crate::domain::summary::UsageSummary;
 
 const APP_NAME: &str = "Plimsoll";
 const IDLE_LABEL: &str = "-";
@@ -18,6 +19,17 @@ pub enum TrayReading {
 }
 
 impl TrayReading {
+    #[must_use]
+    pub fn from_summary(summary: &UsageSummary) -> Self {
+        if !summary.limits.is_empty() {
+            return Self::Limits(summary.limits.clone());
+        }
+        match summary.five_hour.tokens.excluding_cache_reads() {
+            0 => Self::Idle,
+            tokens => Self::Tokens(tokens),
+        }
+    }
+
     #[must_use]
     pub fn label(&self) -> String {
         match self {
@@ -128,6 +140,8 @@ mod tests {
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::severity::Severity;
+    use crate::domain::summary::{TokenWindow, UsageSummary};
+    use crate::domain::tokens::TokenCounts;
     use crate::tray::glyph::glyph;
     use crate::tray::palette::Tone;
 
@@ -142,6 +156,44 @@ mod tests {
             utilization: Utilization::from_percent(percent).expect("valid percent"),
             resets_at: resets_in.map(|span| NOW + span),
         }
+    }
+
+    fn summary(limits: Vec<LimitSnapshot>, tokens: TokenCounts) -> UsageSummary {
+        let empty = TokenWindow {
+            window: None,
+            tokens: TokenCounts::default(),
+        };
+        UsageSummary {
+            limits,
+            five_hour: TokenWindow {
+                window: None,
+                tokens,
+            },
+            weekly: empty,
+        }
+    }
+
+    #[test]
+    fn summaries_prefer_official_limits_then_tokens() {
+        let tokens = TokenCounts {
+            input: 10,
+            output: 20,
+            cache_creation: 30,
+            cache_read: 1_000_000,
+        };
+        let limits = vec![limit(LimitKind::FiveHour, 42.0, None)];
+        assert_eq!(
+            TrayReading::from_summary(&summary(limits.clone(), tokens)),
+            TrayReading::Limits(limits)
+        );
+        assert_eq!(
+            TrayReading::from_summary(&summary(Vec::new(), tokens)),
+            TrayReading::Tokens(60)
+        );
+        assert_eq!(
+            TrayReading::from_summary(&summary(Vec::new(), TokenCounts::default())),
+            TrayReading::Idle
+        );
     }
 
     #[test]
