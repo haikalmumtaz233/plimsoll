@@ -4,6 +4,7 @@
   import AppHeader from "./lib/components/AppHeader.svelte";
   import LimitCard from "./lib/components/LimitCard.svelte";
   import TokenCard from "./lib/components/TokenCard.svelte";
+  import UsageChart from "./lib/components/UsageChart.svelte";
   import { hidePopup, readAppVersion } from "./lib/api/app";
   import { loadUsage, onUsageUpdated, setAccurateMode, type UsageView } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
@@ -105,6 +106,7 @@
         emptyText="No usage this week yet."
       />
     {/if}
+    <UsageChart history={view.history} />
     <AccurateModeToggle enabled={view.accurateMode} onchange={changeAccurateMode} />
     {#if toggleError !== ""}
       <p class="error" role="alert">{toggleError}</p>
