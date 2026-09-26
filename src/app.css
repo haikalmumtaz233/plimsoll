@@ -4,7 +4,13 @@
   --color-text-muted: #55565e;
   --color-border: #d4d5db;
   --color-focus: #0b57d0;
+  --color-track: #e3e4e8;
+  --color-ok: #1b6e3a;
+  --color-warn: #9a6700;
+  --color-danger: #b91c1c;
   --radius-md: 0.5rem;
+  --radius-pill: 999rem;
+  --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-4: 1rem;
   --font-body: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
@@ -25,6 +31,10 @@
     --color-text-muted: #b4b5bd;
     --color-border: #3a3b41;
     --color-focus: #a8c7fa;
+    --color-track: #3a3b41;
+    --color-ok: #4ade80;
+    --color-warn: #fbbf24;
+    --color-danger: #f87171;
   }
 }
 
@@ -35,6 +45,10 @@
     --color-text-muted: CanvasText;
     --color-border: CanvasText;
     --color-focus: Highlight;
+    --color-track: Canvas;
+    --color-ok: Highlight;
+    --color-warn: Highlight;
+    --color-danger: Highlight;
   }
 }
 
