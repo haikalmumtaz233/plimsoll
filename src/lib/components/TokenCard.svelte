@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { TokenView } from "../api/usage";
+  import type { Messages } from "../i18n/messages";
   import { formatTokens, resetText } from "../usage/format";
 
   interface Props {
+    messages: Messages;
     id: string;
     title: string;
     usage: TokenView;
@@ -10,17 +12,17 @@
     emptyText: string;
   }
 
-  let { id, title, usage, now, emptyText }: Props = $props();
+  let { messages, id, title, usage, now, emptyText }: Props = $props();
 
   const titleId = $derived(`tokens-${id}`);
   const hasUsage = $derived(usage.windowEnd !== null && usage.tokens > 0);
-  const reset = $derived(resetText(usage.windowEnd, now));
+  const reset = $derived(resetText(usage.windowEnd, now, messages));
 </script>
 
 <section class="card" aria-labelledby={titleId}>
   <h2 class="title" id={titleId}>{title}</h2>
   {#if hasUsage}
-    <p class="value">{formatTokens(usage.tokens)}</p>
+    <p class="value">{formatTokens(usage.tokens, messages)}</p>
     {#if reset !== null}
       <p class="muted">{reset}</p>
     {/if}

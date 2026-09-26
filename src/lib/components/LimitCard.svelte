@@ -1,22 +1,26 @@
 <script lang="ts">
   import type { LimitView, ThresholdsView } from "../api/usage";
+  import type { Messages } from "../i18n/messages";
   import { formatPercent, limitTitle, resetText } from "../usage/format";
 
   interface Props {
+    messages: Messages;
     limit: LimitView;
     thresholds: ThresholdsView;
     now: number;
   }
 
-  let { limit, thresholds, now }: Props = $props();
+  let { messages, limit, thresholds, now }: Props = $props();
 
   const titleId = $derived(`limit-${limit.kind}`);
-  const reset = $derived(resetText(limit.resetsAt, now));
+  const reset = $derived(resetText(limit.resetsAt, now, messages));
 </script>
 
 <section class="card" aria-labelledby={titleId}>
-  <h2 class="title" id={titleId}>{limitTitle(limit.kind)}</h2>
-  <p class="value">{formatPercent(limit.percent)} <span class="unit">used</span></p>
+  <h2 class="title" id={titleId}>{limitTitle(limit.kind, messages)}</h2>
+  <p class="value">
+    {formatPercent(limit.percent)} <span class="unit">{messages.limits.used}</span>
+  </p>
   <meter
     class="meter"
     aria-labelledby={titleId}

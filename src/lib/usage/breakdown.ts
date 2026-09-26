@@ -1,4 +1,5 @@
 import type { RankingView } from "../api/usage";
+import type { Messages } from "../i18n/messages";
 
 export type BreakdownKind = "models" | "projects";
 
@@ -31,7 +32,11 @@ export function modelLabel(id: string): string {
   return words.length === 0 ? id : words.join(" ");
 }
 
-export function shareRows(ranking: RankingView, kind: BreakdownKind): ShareRow[] {
+export function shareRows(
+  ranking: RankingView,
+  kind: BreakdownKind,
+  messages: Messages,
+): ShareRow[] {
   const total = ranking.top.reduce((sum, share) => sum + share.tokens, 0) + ranking.other;
   if (total === 0) {
     return [];
@@ -45,7 +50,7 @@ export function shareRows(ranking: RankingView, kind: BreakdownKind): ShareRow[]
   if (ranking.other > 0) {
     rows.push({
       key: OTHER_KEY,
-      label: "Other",
+      label: messages.breakdown.other,
       tokens: ranking.other,
       fraction: ranking.other / total,
     });

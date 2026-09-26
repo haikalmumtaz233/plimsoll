@@ -1,11 +1,14 @@
 <script lang="ts">
+  import type { Messages } from "../i18n/messages";
+
   interface Props {
+    messages: Messages;
     versionLabel: string;
     settingsOpen: boolean;
     ontogglesettings: () => void;
   }
 
-  let { versionLabel, settingsOpen, ontogglesettings }: Props = $props();
+  let { messages, versionLabel, settingsOpen, ontogglesettings }: Props = $props();
 </script>
 
 <header class="header">
@@ -16,7 +19,7 @@
     {/if}
   </div>
   <button class="toggle" type="button" aria-expanded={settingsOpen} onclick={ontogglesettings}>
-    {settingsOpen ? "Back" : "Settings"}
+    {settingsOpen ? messages.app.back : messages.app.settings}
   </button>
 </header>
 

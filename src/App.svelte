@@ -18,7 +18,8 @@
   } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
   import { alertText, statusMessage } from "./lib/usage/format";
-  import { rangeName, type HistoryRange } from "./lib/usage/history";
+  import { type HistoryRange } from "./lib/usage/history";
+  import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
 
   let version = $state<string | undefined>(undefined);
   let view = $state<UsageView | undefined>(undefined);
@@ -27,6 +28,15 @@
   let range = $state<HistoryRange>("day");
   let settingsOpen = $state(false);
   let announcement = $state("");
+
+  const locale: Locale = $derived(
+    view?.preferences.resolvedLanguage ?? localeFromTag(navigator.language),
+  );
+  const messages = $derived(messagesFor(locale));
+
+  $effect(() => {
+    document.documentElement.lang = locale;
+  });
 
   function accept(next: UsageView) {
     if (view === undefined || next.generatedAt >= view.generatedAt) {
@@ -97,7 +107,7 @@
       accept(await setAccurateMode(enabled));
       return true;
     } catch {
-      toggleError = "Could not change accurate mode. Try again.";
+      toggleError = messages.app.accurateModeFailed;
       return false;
     }
   }
@@ -122,6 +132,7 @@
 
 <main class="popup">
   <AppHeader
+    {messages}
     versionLabel={version === undefined ? "" : formatVersion(version)}
     {settingsOpen}
     ontogglesettings={() => {
@@ -138,16 +149,17 @@
           announcement = "";
         }}
       >
-        Dismiss
+        {messages.app.dismiss}
       </button>
     {/if}
   </div>
   {#if view === undefined}
     <p class="status" role="status">
-      {loadFailed ? "Usage is unavailable right now." : "Loading usage…"}
+      {loadFailed ? messages.app.unavailable : messages.app.loading}
     </p>
   {:else if settingsOpen}
     <SettingsPanel
+      {messages}
       preferences={view.preferences}
       accurateMode={view.accurateMode}
       onsave={changePreferences}
@@ -158,30 +170,37 @@
     {/if}
   {:else}
     <p class="status" role="status">
-      {statusMessage(view.accurateMode, view.status, view.limits.length > 0)}
+      {statusMessage(view.accurateMode, view.status, view.limits.length > 0, messages)}
     </p>
     {#if view.limits.length > 0}
       {#each view.limits as limit (limit.kind)}
-        <LimitCard {limit} thresholds={view.preferences.thresholds} now={view.generatedAt} />
+        <LimitCard
+          {messages}
+          {limit}
+          thresholds={view.preferences.thresholds}
+          now={view.generatedAt}
+        />
       {/each}
     {:else}
       <TokenCard
         id="five-hour"
-        title="5-hour window"
+        title={messages.windows.fiveHour}
         usage={view.fiveHour}
         now={view.generatedAt}
-        emptyText="No usage in the last 5 hours."
+        emptyText={messages.windows.noUsageFiveHour}
+        {messages}
       />
       <TokenCard
         id="weekly"
-        title="This week"
+        title={messages.windows.week}
         usage={view.weekly}
         now={view.generatedAt}
-        emptyText="No usage this week yet."
+        emptyText={messages.windows.noUsageWeek}
+        {messages}
       />
     {/if}
-    <UsageChart history={view.history} bind:range />
-    <UsageBreakdown breakdown={view.breakdown[range]} rangeName={rangeName(range)} />
+    <UsageChart history={view.history} {messages} bind:range />
+    <UsageBreakdown breakdown={view.breakdown[range]} {range} {messages} />
   {/if}
 </main>
 
