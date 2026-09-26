@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Token history chart in the popup for the last 24 hours or the last 7 days, with a data table for screen readers and keyboard users.
+- Breakdown of token usage by model and by project for the same range as the history chart.
 
 ### Changed
 
