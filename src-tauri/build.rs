@@ -1,4 +1,9 @@
-const COMMANDS: &[&str] = &["usage_summary", "set_accurate_mode", "set_preferences"];
+const COMMANDS: &[&str] = &[
+    "usage_summary",
+    "set_accurate_mode",
+    "set_preferences",
+    "set_manual_percent",
+];
 
 fn main() {
     let attributes = tauri_build::Attributes::new()

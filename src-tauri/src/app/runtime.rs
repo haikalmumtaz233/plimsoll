@@ -15,6 +15,7 @@ use super::view::{AlertView, UsageView};
 use super::{clock, locale};
 use crate::domain::alerts::Alert;
 use crate::domain::clock::Timestamp;
+use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{Language, Preferences};
 use crate::error::AppError;
 use crate::i18n::Text;
@@ -96,6 +97,17 @@ pub fn set_preferences<R: Runtime>(
     if accurate_mode {
         start_poller(app);
     }
+    publish(app)
+}
+
+pub fn set_manual_reading<R: Runtime>(
+    app: &AppHandle<R>,
+    kind: LimitKind,
+    utilization: Option<Utilization>,
+) -> Option<UsageView> {
+    with_engine(app, |engine| {
+        engine.set_manual_reading(kind, utilization, clock::now())
+    })?;
     publish(app)
 }
 

@@ -19,7 +19,8 @@ pub fn run() -> Result<(), AppError> {
         .invoke_handler(tauri::generate_handler![
             commands::usage_summary,
             commands::set_accurate_mode,
-            commands::set_preferences
+            commands::set_preferences,
+            commands::set_manual_percent
         ])
         .run(tauri::generate_context!())?;
     Ok(())
