@@ -9,6 +9,7 @@
     dailyBars,
     hourlyBars,
     niceCeiling,
+    rangeName as nameOfRange,
     totalTokens,
     type Bar,
     type HistoryRange,
@@ -50,7 +51,7 @@
   const ticks = $derived(ceiling === 0 ? [0] : [0, ceiling / 2, ceiling]);
   const slot = $derived(bars.length === 0 ? 0 : PLOT_WIDTH / bars.length);
   const barWidth = $derived(Math.min(MAX_BAR, Math.max(1, slot - GAP)));
-  const rangeName = $derived(range === "day" ? "Last 24 hours" : "Last 7 days");
+  const rangeName = $derived(nameOfRange(range));
   const total = $derived(totalTokens(bars));
   const peak = $derived(
     bars.reduce<Bar | undefined>(
