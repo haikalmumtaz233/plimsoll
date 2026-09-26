@@ -1,5 +1,6 @@
 use super::aggregate::totals_in;
 use super::clock::{Span, Timestamp};
+use super::history::{self, HourlyHistory};
 use super::limit::{LimitKind, LimitSnapshot};
 use super::period::{
     DEFAULT_WEEKLY_ANCHOR, Window, five_hour_from_reset, weekly_containing, weekly_from_reset,
@@ -21,13 +22,15 @@ pub struct UsageSummary {
     pub limits: Vec<LimitSnapshot>,
     pub five_hour: TokenWindow,
     pub weekly: TokenWindow,
+    pub history: HourlyHistory,
 }
 
 #[must_use]
 pub fn lookback(limits: &[LimitSnapshot], now: Timestamp) -> Window {
     let start = weekly_window(limits, now)
         .start()
-        .min(now - INFERENCE_LOOKBACK);
+        .min(now - INFERENCE_LOOKBACK)
+        .min(history::window(now).start());
     Window::starting_at(start, (now + Span::from_millis(1)) - start)
 }
 
@@ -42,6 +45,7 @@ pub fn summarize(
     UsageSummary {
         five_hour: tokens_in(five_hour, events),
         weekly: tokens_in(Some(weekly), events),
+        history: history::hourly(events, now),
         limits,
     }
 }
@@ -86,6 +90,7 @@ fn tokens_in(window: Option<Window>, events: &[UsageEvent]) -> TokenWindow {
 mod tests {
     use super::{INFERENCE_LOOKBACK, lookback, summarize};
     use crate::domain::clock::{Span, Timestamp};
+    use crate::domain::history;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::period::{DEFAULT_WEEKLY_ANCHOR, Window, weekly_containing};
     use crate::domain::record::UsageEvent;
@@ -123,6 +128,7 @@ mod tests {
             Some(NOW - Span::hours(3))
         );
         assert_eq!(summary.five_hour.tokens.output, 110);
+        assert_eq!(summary.history.tokens.iter().sum::<u64>(), 111);
         assert_eq!(
             summary.weekly.window,
             Some(weekly_containing(DEFAULT_WEEKLY_ANCHOR, NOW))
@@ -164,7 +170,8 @@ mod tests {
         assert!(window.contains(NOW));
         assert!(window.contains(NOW - INFERENCE_LOOKBACK));
         assert!(window.contains(weekly_containing(DEFAULT_WEEKLY_ANCHOR, NOW).start()));
+        assert!(window.contains(history::window(NOW).start()));
         let official = lookback(&[limit(LimitKind::SevenDay, 1)], NOW);
-        assert_eq!(official.start(), NOW + Span::hours(1) - Span::WEEK);
+        assert_eq!(official.start(), history::window(NOW).start());
     }
 }

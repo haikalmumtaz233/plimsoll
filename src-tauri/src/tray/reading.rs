@@ -138,6 +138,7 @@ fn countdown(span: Span) -> String {
 mod tests {
     use super::{TrayReading, compact_tokens, countdown, grouped_thousands};
     use crate::domain::clock::{Span, Timestamp};
+    use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::severity::Severity;
     use crate::domain::summary::{TokenWindow, UsageSummary};
@@ -170,6 +171,10 @@ mod tests {
                 tokens,
             },
             weekly: empty,
+            history: HourlyHistory {
+                start: NOW,
+                tokens: Vec::new(),
+            },
         }
     }
 
