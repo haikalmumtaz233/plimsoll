@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Option in Settings to start Plimsoll when Windows starts. It is off by default.
-- Installers for each release: per-user NSIS setup for x64 and ARM64, and an MSI for x64. They are not code signed yet, so SmartScreen may warn on first run.
+- Installers for each release: per-user NSIS setup for x64 and ARM64, and an MSI for x64. Uninstalling removes the start with Windows entry. They are not code signed yet, so SmartScreen may warn on first run.
 
 ### Changed
 
