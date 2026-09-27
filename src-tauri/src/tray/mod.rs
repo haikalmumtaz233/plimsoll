@@ -23,6 +23,10 @@ use reading::TrayReading;
 const TRAY_ID: &str = "plimsoll";
 const DEFAULT_SCALE: f64 = 1.0;
 
+pub fn open_popup<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
+    popup::show(app, None)
+}
+
 pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let idle = TrayReading::Idle;
     let language = locale::resolve(LanguageChoice::System);
