@@ -187,6 +187,21 @@ mod tests {
     }
 
     #[test]
+    fn implausible_token_counts_cannot_break_the_totals() {
+        let mut database = Database::open_in_memory().expect("open");
+        database
+            .insert_events(&[
+                keyed("huge-a", 1_000, u64::MAX),
+                keyed("huge-b", 1_500, u64::MAX),
+                keyed("normal", 1_800, 5),
+            ])
+            .expect("insert");
+        let totals = database.tokens_in(everything()).expect("sum");
+        assert!(totals.output > 5);
+        assert_eq!(database.events_in(everything()).expect("query").len(), 3);
+    }
+
+    #[test]
     fn expired_events_are_pruned() {
         let mut database = Database::open_in_memory().expect("open");
         let now = Timestamp::from_unix_millis(10_000_000_000);
