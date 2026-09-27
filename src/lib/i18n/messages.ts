@@ -85,6 +85,8 @@ export interface Messages {
     interval: (minutes: number) => string;
     language: string;
     languageNames: Record<LanguageChoice, string>;
+    autostart: string;
+    autostartFailed: string;
     save: string;
     saved: string;
     saveFailed: string;
@@ -198,6 +200,8 @@ export const en: Messages = {
     interval: (minutes) => (minutes === 1 ? "Every minute" : `Every ${String(minutes)} minutes`),
     language: "Language",
     languageNames: { system: "Match Windows", en: "English", id: "Bahasa Indonesia" },
+    autostart: "Start Plimsoll when Windows starts",
+    autostartFailed: "Could not change the startup setting. Try again.",
     save: "Save",
     saved: "Saved.",
     saveFailed: "Could not save settings. Try again.",
@@ -319,6 +323,8 @@ export const id: Messages = {
     interval: (minutes) => (minutes === 1 ? "Setiap menit" : `Setiap ${String(minutes)} menit`),
     language: "Bahasa",
     languageNames: { system: "Ikuti Windows", en: "English", id: "Bahasa Indonesia" },
+    autostart: "Jalankan Plimsoll saat Windows dimulai",
+    autostartFailed: "Gagal mengubah pengaturan startup. Coba lagi.",
     save: "Simpan",
     saved: "Tersimpan.",
     saveFailed: "Gagal menyimpan pengaturan. Coba lagi.",

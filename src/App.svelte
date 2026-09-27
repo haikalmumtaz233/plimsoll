@@ -14,6 +14,7 @@
     saveManualPercent,
     savePreferences,
     setAccurateMode,
+    setAutostart,
     type LimitKind,
     type PreferencesInput,
     type UsageView,
@@ -114,6 +115,15 @@
     }
   }
 
+  async function changeAutostart(enabled: boolean): Promise<boolean> {
+    try {
+      accept(await setAutostart(enabled));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function changeManualPercent(kind: LimitKind, percent: number | null): Promise<boolean> {
     try {
       accept(await saveManualPercent(kind, percent));
@@ -178,6 +188,8 @@
       manual={view.manual}
       now={view.generatedAt}
       onmanualsave={changeManualPercent}
+      autostart={view.autostart}
+      onautostartchange={changeAutostart}
     />
     {#if toggleError !== ""}
       <p class="error" role="alert">{toggleError}</p>
