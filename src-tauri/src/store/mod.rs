@@ -54,8 +54,10 @@ impl Database {
     }
 }
 
+const MAX_STORED_COUNT: i64 = 1_000_000_000_000;
+
 fn to_sql_count(value: u64) -> i64 {
-    i64::try_from(value).unwrap_or(i64::MAX)
+    i64::try_from(value).map_or(MAX_STORED_COUNT, |count| count.min(MAX_STORED_COUNT))
 }
 
 fn from_sql_count(value: i64) -> u64 {
@@ -64,13 +66,14 @@ fn from_sql_count(value: i64) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Database, from_sql_count, to_sql_count};
+    use super::{Database, MAX_STORED_COUNT, from_sql_count, to_sql_count};
     use std::fs;
 
     #[test]
     fn counts_round_trip_and_clamp() {
         assert_eq!(from_sql_count(to_sql_count(42)), 42);
-        assert_eq!(to_sql_count(u64::MAX), i64::MAX);
+        assert_eq!(to_sql_count(u64::MAX), MAX_STORED_COUNT);
+        assert_eq!(to_sql_count(2_000_000_000_000), MAX_STORED_COUNT);
         assert_eq!(from_sql_count(-5), 0);
     }
 
