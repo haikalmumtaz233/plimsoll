@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - The popup is released 30 seconds after it closes, so Plimsoll uses about 6 MB of memory instead of about 180 MB while it sits in the tray. Opening the popup after that takes under a second.
+- Pre-releases such as release candidates ship only the NSIS installers. The MSI is built for final releases.
 
 ### Fixed
 
