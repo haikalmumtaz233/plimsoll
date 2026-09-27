@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0-rc.1] - 2026-09-27
+
 ### Changed
 
 - The popup is released 30 seconds after it closes, so Plimsoll uses about 6 MB of memory instead of about 180 MB while it sits in the tray. Opening the popup after that takes under a second.
@@ -64,7 +66,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Opt-in accurate mode that reads the Claude Code sign-in on this PC to fetch official percentages, falling back to local estimates when it is unavailable.
 - Tray icon drawn as a sharp badge at 100 to 300 percent display scaling: the most used limit in percent, colored at 50, 80 and 95 percent, or tokens used when accurate mode is off. The tooltip lists each limit with its reset countdown.
 
-[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.5.0-rc.1...HEAD
+[0.5.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.4.0...v0.5.0-rc.1
 [0.4.0]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.1.0...v0.2.0
