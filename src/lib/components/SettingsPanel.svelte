@@ -21,6 +21,8 @@
     manual: readonly ManualView[];
     now: number;
     onmanualsave: (kind: LimitKind, percent: number | null) => Promise<boolean>;
+    autostart: boolean;
+    onautostartchange: (enabled: boolean) => Promise<boolean>;
   }
 
   let {
@@ -32,7 +34,24 @@
     manual,
     now,
     onmanualsave,
+    autostart,
+    onautostartchange,
   }: Props = $props();
+
+  let startupBusy = $state(false);
+  let startupError = $state("");
+
+  async function handleAutostart(event: Event & { currentTarget: HTMLInputElement }) {
+    const input = event.currentTarget;
+    startupBusy = true;
+    startupError = "";
+    const changed = await onautostartchange(input.checked);
+    if (!changed) {
+      input.checked = autostart;
+      startupError = messages.settings.autostartFailed;
+    }
+    startupBusy = false;
+  }
 
   const LANGUAGES: readonly LanguageChoice[] = ["system", "en", "id"];
 
@@ -129,6 +148,19 @@
       <p class="saved" role="status">{saved ? messages.settings.saved : ""}</p>
     </div>
   </form>
+  <div class="startup">
+    <input
+      id="autostart"
+      type="checkbox"
+      checked={autostart}
+      disabled={startupBusy}
+      onchange={handleAutostart}
+    />
+    <label for="autostart">{messages.settings.autostart}</label>
+  </div>
+  {#if startupError !== ""}
+    <p class="error" role="alert">{startupError}</p>
+  {/if}
   <ManualPercent {messages} {manual} {now} onsave={onmanualsave} />
   <AccurateModeToggle
     {messages}
@@ -139,6 +171,22 @@
 </section>
 
 <style>
+  .startup {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 0.0625rem solid var(--color-border);
+    font-size: 0.875rem;
+  }
+
+  .startup input {
+    width: 1.125rem;
+    height: 1.125rem;
+    margin: 0;
+    accent-color: var(--color-focus);
+  }
+
   .settings {
     display: grid;
     gap: var(--space-4);
