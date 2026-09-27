@@ -2,6 +2,7 @@ pub mod clock;
 pub mod engine;
 pub mod locale;
 pub mod runtime;
+pub mod startup;
 pub mod view;
 
 use crate::commands;
@@ -15,7 +16,6 @@ pub fn run() -> Result<(), AppError> {
                 eprintln!("failed to open the running instance: {error}");
             }
         }))
-        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             tray::install(app.handle())?;
