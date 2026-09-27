@@ -59,7 +59,9 @@ pub fn parse(line: &[u8]) -> Option<KeyedEvent> {
         return None;
     }
     let message = raw.message?;
-    let model = message.model.filter(|model| !model.starts_with('<'))?;
+    let model = message
+        .model
+        .filter(|model| !model.is_empty() && !model.starts_with('<'))?;
     let usage = message.usage?;
     let message_id = message.id?;
     let at = rfc3339::parse(raw.timestamp.as_deref()?)?;
@@ -180,6 +182,10 @@ mod tests {
             parse(&assistant(
                 &json!({ "message": { "model": "<synthetic>" } })
             )),
+            None
+        );
+        assert_eq!(
+            parse(&assistant(&json!({ "message": { "model": "" } }))),
             None
         );
         assert_eq!(
