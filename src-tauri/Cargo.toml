@@ -59,3 +59,6 @@ strip = true
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt", "test-util"] }
+
+[target."cfg(windows)".dependencies]
+winreg = "0.10"
