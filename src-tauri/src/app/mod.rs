@@ -15,6 +15,7 @@ pub fn run() -> Result<(), AppError> {
                 eprintln!("failed to open the running instance: {error}");
             }
         }))
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             tray::install(app.handle())?;
@@ -25,7 +26,8 @@ pub fn run() -> Result<(), AppError> {
             commands::usage_summary,
             commands::set_accurate_mode,
             commands::set_preferences,
-            commands::set_manual_percent
+            commands::set_manual_percent,
+            commands::set_autostart
         ])
         .run(tauri::generate_context!())?;
     Ok(())

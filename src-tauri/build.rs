@@ -3,6 +3,7 @@ const COMMANDS: &[&str] = &[
     "set_accurate_mode",
     "set_preferences",
     "set_manual_percent",
+    "set_autostart",
 ];
 
 fn main() {
