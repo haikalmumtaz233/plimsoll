@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The popup is released 30 seconds after it closes, so Plimsoll uses about 6 MB of memory instead of about 180 MB while it sits in the tray. Opening the popup after that takes under a second.
 
+### Fixed
+
+- Usage no longer becomes unavailable when a Claude Code log reports an implausibly large token count.
+- Log lines without a model name are ignored instead of showing an empty model in the breakdown.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added
