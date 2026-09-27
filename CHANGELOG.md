@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The popup is released 30 seconds after it closes, so Plimsoll uses about 6 MB of memory instead of about 180 MB while it sits in the tray. Opening the popup after that takes under a second.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added
