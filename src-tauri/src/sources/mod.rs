@@ -2,6 +2,9 @@ pub mod jsonl;
 pub mod oauth;
 pub mod rfc3339;
 
+#[cfg(test)]
+mod fuzz;
+
 use std::ffi::OsString;
 use std::path::PathBuf;
 
