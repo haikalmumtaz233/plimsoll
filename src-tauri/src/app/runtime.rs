@@ -9,6 +9,7 @@ use std::time::Duration;
 use notify::RecommendedWatcher;
 use tauri::async_runtime::{self, JoinHandle};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri_plugin_autostart::ManagerExt;
 
 use super::engine::{Engine, Report};
 use super::view::{AlertView, UsageView};
@@ -72,7 +73,12 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
 pub fn current_view<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     let now = clock::now();
     report(app, now).map(|report| {
-        UsageView::from_report(&report, locale::resolve(report.preferences.language), now)
+        UsageView::from_report(
+            &report,
+            locale::resolve(report.preferences.language),
+            autostart_enabled(app),
+            now,
+        )
     })
 }
 
@@ -109,6 +115,24 @@ pub fn set_manual_reading<R: Runtime>(
         engine.set_manual_reading(kind, utilization, clock::now())
     })?;
     publish(app)
+}
+
+pub fn set_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<UsageView> {
+    let launcher = app.autolaunch();
+    let result = if enabled {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    };
+    if let Err(error) = result {
+        eprintln!("failed to change start with windows: {error}");
+        return None;
+    }
+    publish(app)
+}
+
+fn autostart_enabled<R: Runtime>(app: &AppHandle<R>) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
 }
 
 fn open_database<R: Runtime>(app: &AppHandle<R>) -> Result<Database, DatabaseError> {
@@ -262,7 +286,7 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     let now = clock::now();
     let report = report(app, now)?;
     let language = locale::resolve(report.preferences.language);
-    let view = UsageView::from_report(&report, language, now);
+    let view = UsageView::from_report(&report, language, autostart_enabled(app), now);
     if let Err(error) = app.emit(USAGE_EVENT, &view) {
         eprintln!("failed to publish usage: {error}");
     }

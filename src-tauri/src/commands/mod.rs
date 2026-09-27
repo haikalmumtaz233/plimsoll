@@ -107,6 +107,15 @@ pub fn set_manual_percent<R: Runtime>(
     runtime::set_manual_reading(&app, kind, utilization).ok_or(CommandError::Unavailable)
 }
 
+#[tauri::command(async)]
+#[allow(clippy::needless_pass_by_value)]
+pub fn set_autostart<R: Runtime>(
+    app: AppHandle<R>,
+    enabled: bool,
+) -> Result<UsageView, CommandError> {
+    runtime::set_autostart(&app, enabled).ok_or(CommandError::Unavailable)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{CommandError, ManualInput, PreferencesInput};

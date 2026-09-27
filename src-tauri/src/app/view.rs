@@ -136,12 +136,18 @@ pub struct UsageView {
     pub weekly: TokenView,
     pub history: HistoryView,
     pub breakdown: BreakdownsView,
+    pub autostart: bool,
     pub generated_at: i64,
 }
 
 impl UsageView {
     #[must_use]
-    pub fn from_report(report: &Report, language: Language, now: Timestamp) -> Self {
+    pub fn from_report(
+        report: &Report,
+        language: Language,
+        autostart: bool,
+        now: Timestamp,
+    ) -> Self {
         Self {
             accurate_mode: report.accurate_mode,
             status: report.status,
@@ -161,6 +167,7 @@ impl UsageView {
             weekly: token_view(report.summary.weekly),
             history: history_view(&report.summary.history),
             breakdown: breakdowns_view(&report.summary.breakdowns),
+            autostart,
             generated_at: now.unix_millis(),
         }
     }
@@ -333,9 +340,13 @@ mod tests {
     fn serializes_camel_case_for_the_popup() {
         let window = Window::starting_at(NOW - Span::hours(1), Span::FIVE_HOURS);
         let report = sample_report(window);
-        let value =
-            serde_json::to_value(UsageView::from_report(&report, Language::Indonesian, NOW))
-                .expect("json");
+        let value = serde_json::to_value(UsageView::from_report(
+            &report,
+            Language::Indonesian,
+            true,
+            NOW,
+        ))
+        .expect("json");
         assert_eq!(
             value,
             json!({
@@ -383,6 +394,7 @@ mod tests {
                         "projects": { "top": [], "other": 0 }
                     }
                 },
+                "autostart": true,
                 "generatedAt": NOW.unix_millis()
             })
         );
