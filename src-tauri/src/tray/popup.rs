@@ -1,17 +1,51 @@
-use tauri::{AppHandle, Manager, Monitor, PhysicalPosition, Rect, Runtime, WebviewWindow};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::thread;
+use std::time::Duration;
+
+use tauri::{
+    AppHandle, Manager, Monitor, PhysicalPosition, Rect, Runtime, WebviewWindow,
+    WebviewWindowBuilder,
+};
 
 use super::placement::{self, Area, Point, Size};
 use crate::error::AppError;
 
 const POPUP_LABEL: &str = "popup";
 const TRAY_SCALE: f64 = 1.0;
+const RELEASE_DELAY: Duration = Duration::from_secs(30);
+
+#[derive(Debug, Default)]
+pub struct PopupLifetime {
+    generation: AtomicU64,
+}
+
+impl PopupLifetime {
+    pub fn renew(&self) -> u64 {
+        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    #[must_use]
+    pub fn is_current(&self, generation: u64) -> bool {
+        self.generation.load(Ordering::SeqCst) == generation
+    }
+}
 
 fn window<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, AppError> {
-    app.get_webview_window(POPUP_LABEL)
-        .ok_or(AppError::MissingWindow(POPUP_LABEL))
+    if let Some(popup) = app.get_webview_window(POPUP_LABEL) {
+        return Ok(popup);
+    }
+    let config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == POPUP_LABEL)
+        .ok_or(AppError::MissingWindow(POPUP_LABEL))?;
+    Ok(WebviewWindowBuilder::from_config(app, config)?.build()?)
 }
 
 pub fn show<R: Runtime>(app: &AppHandle<R>, anchor: Option<Rect>) -> Result<(), AppError> {
+    renew(app);
     let popup = window(app)?;
     if let Some(point) = placement_for(app, &popup, anchor) {
         popup.set_position(PhysicalPosition::new(point.x, point.y))?;
@@ -21,13 +55,57 @@ pub fn show<R: Runtime>(app: &AppHandle<R>, anchor: Option<Rect>) -> Result<(), 
     Ok(())
 }
 
+pub fn hide<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
+    let Some(popup) = app.get_webview_window(POPUP_LABEL) else {
+        return Ok(());
+    };
+    popup.hide()?;
+    schedule_release(app);
+    Ok(())
+}
+
 pub fn toggle<R: Runtime>(app: &AppHandle<R>, anchor: Option<Rect>) -> Result<(), AppError> {
-    let popup = window(app)?;
-    if popup.is_visible()? {
-        popup.hide()?;
-        Ok(())
+    let visible = match app.get_webview_window(POPUP_LABEL) {
+        Some(popup) => popup.is_visible()?,
+        None => false,
+    };
+    if visible {
+        hide(app)
     } else {
         show(app, anchor)
+    }
+}
+
+fn renew<R: Runtime>(app: &AppHandle<R>) -> Option<u64> {
+    app.try_state::<PopupLifetime>()
+        .map(|lifetime| lifetime.renew())
+}
+
+fn schedule_release<R: Runtime>(app: &AppHandle<R>) {
+    let Some(generation) = renew(app) else {
+        return;
+    };
+    let app = app.clone();
+    thread::spawn(move || {
+        thread::sleep(RELEASE_DELAY);
+        let main = app.clone();
+        if let Err(error) = app.run_on_main_thread(move || release(&main, generation)) {
+            eprintln!("failed to release the popup: {error}");
+        }
+    });
+}
+
+fn release<R: Runtime>(app: &AppHandle<R>, generation: u64) {
+    let current = app
+        .try_state::<PopupLifetime>()
+        .is_some_and(|lifetime| lifetime.is_current(generation));
+    if !current {
+        return;
+    }
+    if let Some(popup) = app.get_webview_window(POPUP_LABEL)
+        && let Err(error) = popup.destroy()
+    {
+        eprintln!("failed to release the popup: {error}");
     }
 }
 
@@ -75,4 +153,19 @@ fn work_area(monitor: &Monitor) -> Option<Area> {
         width: i32::try_from(rect.size.width).ok()?,
         height: i32::try_from(rect.size.height).ok()?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PopupLifetime;
+
+    #[test]
+    fn showing_again_cancels_a_pending_release() {
+        let lifetime = PopupLifetime::default();
+        let hidden = lifetime.renew();
+        assert!(lifetime.is_current(hidden));
+        let shown = lifetime.renew();
+        assert!(!lifetime.is_current(hidden));
+        assert!(lifetime.is_current(shown));
+    }
 }

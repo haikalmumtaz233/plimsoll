@@ -5,6 +5,8 @@ pub mod runtime;
 pub mod startup;
 pub mod view;
 
+use tauri::RunEvent;
+
 use crate::commands;
 use crate::error::AppError;
 use crate::tray;
@@ -27,8 +29,17 @@ pub fn run() -> Result<(), AppError> {
             commands::set_accurate_mode,
             commands::set_preferences,
             commands::set_manual_percent,
-            commands::set_autostart
+            commands::set_autostart,
+            commands::hide_popup
         ])
-        .run(tauri::generate_context!())?;
+        .build(tauri::generate_context!())?
+        .run(|_, event| {
+            if let RunEvent::ExitRequested {
+                code: None, api, ..
+            } = event
+            {
+                api.prevent_exit();
+            }
+        });
     Ok(())
 }

@@ -5,13 +5,13 @@
   "windows": ["popup"],
   "permissions": [
     "core:app:allow-version",
-    "core:window:allow-hide",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "allow-usage-summary",
     "allow-set-accurate-mode",
     "allow-set-preferences",
     "allow-set-manual-percent",
-    "allow-set-autostart"
+    "allow-set-autostart",
+    "allow-hide-popup"
   ]
 }

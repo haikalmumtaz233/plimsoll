@@ -14,6 +14,7 @@
     "windows": [
       {
         "label": "popup",
+        "create": false,
         "title": "Plimsoll",
         "width": 360,
         "height": 600,

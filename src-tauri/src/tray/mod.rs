@@ -9,7 +9,7 @@ pub mod render;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
 use crate::app::{clock, locale};
 use crate::domain::clock::Timestamp;
@@ -27,10 +27,15 @@ pub fn open_popup<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     popup::show(app, None)
 }
 
+pub fn hide_popup<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
+    popup::hide(app)
+}
+
 pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let idle = TrayReading::Idle;
     let language = locale::resolve(LanguageChoice::System);
     let menu = build_menu(app, language)?;
+    app.manage(popup::PopupLifetime::default());
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon_image(app, &idle, Thresholds::DEFAULT)?)

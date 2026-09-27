@@ -7,6 +7,7 @@ use crate::app::view::UsageView;
 use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
 use crate::domain::severity::Thresholds;
+use crate::tray;
 
 #[derive(Debug, Error)]
 pub enum CommandError {
@@ -20,6 +21,8 @@ pub enum CommandError {
     InvalidLanguage,
     #[error("manual readings need a known limit and a percent from 0 to 100")]
     InvalidManual,
+    #[error("the popup could not be hidden")]
+    Popup,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -114,6 +117,15 @@ pub fn set_autostart<R: Runtime>(
     enabled: bool,
 ) -> Result<UsageView, CommandError> {
     runtime::set_autostart(&app, enabled).ok_or(CommandError::Unavailable)
+}
+
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
+pub fn hide_popup<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
+    tray::hide_popup(&app).map_err(|error| {
+        eprintln!("failed to hide the popup: {error}");
+        CommandError::Popup
+    })
 }
 
 #[cfg(test)]

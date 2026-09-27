@@ -4,6 +4,7 @@ const COMMANDS: &[&str] = &[
     "set_preferences",
     "set_manual_percent",
     "set_autostart",
+    "hide_popup",
 ];
 
 fn main() {
