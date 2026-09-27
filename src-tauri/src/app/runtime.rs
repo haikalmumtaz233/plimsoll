@@ -6,14 +6,14 @@ use std::sync::{Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
 
+use auto_launch::AutoLaunch;
 use notify::RecommendedWatcher;
 use tauri::async_runtime::{self, JoinHandle};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use tauri_plugin_autostart::ManagerExt;
 
 use super::engine::{Engine, Report};
 use super::view::{AlertView, UsageView};
-use super::{clock, locale};
+use super::{clock, locale, startup};
 use crate::domain::alerts::Alert;
 use crate::domain::clock::Timestamp;
 use crate::domain::limit::{LimitKind, Utilization};
@@ -43,6 +43,7 @@ struct Shared {
     watcher: Mutex<Option<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
+    startup: Option<AutoLaunch>,
 }
 
 pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
@@ -58,6 +59,9 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         watcher: Mutex::new(None),
         refresh,
         menu_language: Mutex::new(None),
+        startup: startup::current_launcher(&app.package_info().name)
+            .inspect_err(|error| eprintln!("start with windows is unavailable: {error}"))
+            .ok(),
     });
     let root = jsonl::projects_root();
     if let Some(root) = &root {
@@ -118,7 +122,8 @@ pub fn set_manual_reading<R: Runtime>(
 }
 
 pub fn set_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<UsageView> {
-    let launcher = app.autolaunch();
+    let shared = app.try_state::<Shared>()?;
+    let launcher = shared.startup.as_ref()?;
     let result = if enabled {
         launcher.enable()
     } else {
@@ -132,7 +137,9 @@ pub fn set_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<Us
 }
 
 fn autostart_enabled<R: Runtime>(app: &AppHandle<R>) -> bool {
-    app.autolaunch().is_enabled().unwrap_or(false)
+    app.try_state::<Shared>()
+        .and_then(|shared| shared.startup.as_ref().map(AutoLaunch::is_enabled))
+        .is_some_and(|enabled| enabled.unwrap_or(false))
 }
 
 fn open_database<R: Runtime>(app: &AppHandle<R>) -> Result<Database, DatabaseError> {
