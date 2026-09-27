@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
+use tauri::webview::PageLoadEvent;
 use tauri::{
     AppHandle, Manager, Monitor, PhysicalPosition, Rect, Runtime, WebviewWindow,
     WebviewWindowBuilder,
@@ -30,10 +31,7 @@ impl PopupLifetime {
     }
 }
 
-fn window<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, AppError> {
-    if let Some(popup) = app.get_webview_window(POPUP_LABEL) {
-        return Ok(popup);
-    }
+fn create<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, AppError> {
     let config = app
         .config()
         .app
@@ -41,15 +39,41 @@ fn window<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, AppError> 
         .iter()
         .find(|window| window.label == POPUP_LABEL)
         .ok_or(AppError::MissingWindow(POPUP_LABEL))?;
-    Ok(WebviewWindowBuilder::from_config(app, config)?.build()?)
+    Ok(WebviewWindowBuilder::from_config(app, config)?
+        .on_page_load(|popup, payload| {
+            if matches!(payload.event(), PageLoadEvent::Finished)
+                && let Err(error) = reveal(&popup)
+            {
+                eprintln!("failed to show the popup: {error}");
+            }
+        })
+        .build()?)
 }
 
 pub fn show<R: Runtime>(app: &AppHandle<R>, anchor: Option<Rect>) -> Result<(), AppError> {
     renew(app);
-    let popup = window(app)?;
-    if let Some(point) = placement_for(app, &popup, anchor) {
+    match app.get_webview_window(POPUP_LABEL) {
+        Some(popup) => {
+            place(app, &popup, anchor)?;
+            reveal(&popup)?;
+            Ok(())
+        }
+        None => place(app, &create(app)?, anchor),
+    }
+}
+
+fn place<R: Runtime>(
+    app: &AppHandle<R>,
+    popup: &WebviewWindow<R>,
+    anchor: Option<Rect>,
+) -> Result<(), AppError> {
+    if let Some(point) = placement_for(app, popup, anchor) {
         popup.set_position(PhysicalPosition::new(point.x, point.y))?;
     }
+    Ok(())
+}
+
+fn reveal<R: Runtime>(popup: &WebviewWindow<R>) -> Result<(), AppError> {
     popup.show()?;
     popup.set_focus()?;
     Ok(())
