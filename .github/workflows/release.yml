@@ -60,7 +60,18 @@ jobs:
       - name: Version sync
         run: pnpm version:check
       - name: Build installers
-        run: pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          BUNDLES: ${{ matrix.bundles }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          bundles="$BUNDLES"
+          if [[ "$version" == *-* ]]; then
+            bundles=nsis
+          fi
+          pnpm tauri build --target "$TARGET" --bundles "$bundles"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: installers-${{ matrix.arch }}
@@ -113,6 +124,10 @@ jobs:
             exit 1
           fi
           if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md --verify-tag
+            prerelease=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              prerelease=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md --verify-tag "${prerelease[@]}"
           fi
           gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
