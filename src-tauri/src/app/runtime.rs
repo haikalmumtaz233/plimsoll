@@ -2,13 +2,14 @@ use std::fs;
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
 
 use notify::RecommendedWatcher;
 use tauri::async_runtime::{self, JoinHandle};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tokio::sync::Notify;
 
 use super::engine::{Engine, Report};
 use super::startup::Startup;
@@ -40,6 +41,7 @@ const DEBOUNCE: Duration = Duration::from_millis(300);
 struct Shared {
     engine: Mutex<Engine>,
     poller: Mutex<Option<JoinHandle<()>>>,
+    wake: Arc<Notify>,
     watcher: Mutex<Option<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
@@ -56,6 +58,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     app.manage(Shared {
         engine: Mutex::new(engine),
         poller: Mutex::new(None),
+        wake: Arc::new(Notify::new()),
         watcher: Mutex::new(None),
         refresh,
         menu_language: Mutex::new(None),
@@ -220,12 +223,9 @@ fn start_poller<R: Runtime>(app: &AppHandle<R>) {
     if let Some(previous) = poller.take() {
         previous.abort();
     }
-    let interval = with_engine(app, |engine| engine.preferences())
-        .unwrap_or_default()
-        .poll_interval;
     let handle = app.clone();
     *poller = Some(async_runtime::spawn(async move {
-        poll_oauth(handle, PollSchedule::new(interval.duration())).await;
+        poll_oauth(handle).await;
     }));
 }
 
@@ -241,7 +241,10 @@ fn stop_poller<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-async fn poll_oauth<R: Runtime>(app: AppHandle<R>, schedule: PollSchedule) {
+async fn poll_oauth<R: Runtime>(app: AppHandle<R>) {
+    let Some(wake) = wake_handle(&app) else {
+        return;
+    };
     let Some(path) = credentials::credentials_path() else {
         record(
             &app,
@@ -257,11 +260,31 @@ async fn poll_oauth<R: Runtime>(app: AppHandle<R>, schedule: PollSchedule) {
         }
     };
     let source = OAuthUsageSource::new(transport, path);
-    poll::run(&source, schedule, clock::now, Jitter::random, |result| {
-        record(&app, &result);
-        ControlFlow::Continue(())
-    })
+    poll::run(
+        &source,
+        PollSchedule::default(),
+        clock::now,
+        || cadence(&app),
+        Jitter::random,
+        &wake,
+        |result| {
+            record(&app, &result);
+            ControlFlow::Continue(())
+        },
+    )
     .await;
+}
+
+fn wake_handle<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<Notify>> {
+    app.try_state::<Shared>()
+        .map(|shared| Arc::clone(&shared.wake))
+}
+
+fn cadence<R: Runtime>(app: &AppHandle<R>) -> Duration {
+    with_engine(app, |engine| engine.preferences())
+        .unwrap_or_default()
+        .poll_interval
+        .duration()
 }
 
 fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
