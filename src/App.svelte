@@ -6,7 +6,7 @@
   import TokenCard from "./lib/components/TokenCard.svelte";
   import UsageBreakdown from "./lib/components/UsageBreakdown.svelte";
   import UsageChart from "./lib/components/UsageChart.svelte";
-  import { hidePopup, readAppVersion } from "./lib/api/app";
+  import { hidePopup, openUsagePage, readAppVersion } from "./lib/api/app";
   import {
     loadUsage,
     onUsageAlert,
@@ -352,6 +352,18 @@
         {messages}
       />
     {/if}
+    <button
+      type="button"
+      class="usage-link"
+      onclick={() => {
+        void openUsagePage().catch(() => undefined);
+      }}
+    >
+      {messages.usagePage}
+      <svg class="external" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M9 3h4v4M13 3 7 9M11 9.5V13H3V5h3.5" />
+      </svg>
+    </button>
     <UsageChart history={view.history} {messages} bind:range />
     <UsageBreakdown breakdown={view.breakdown[range]} {range} {messages} />
   {/if}
@@ -441,6 +453,32 @@
   .refresh[aria-disabled="true"] {
     color: var(--color-text-muted);
     cursor: default;
+  }
+
+  .usage-link {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: var(--space-1);
+    min-height: 1.5rem;
+    padding: 0;
+    font: inherit;
+    font-size: 0.8125rem;
+    color: var(--color-text);
+    text-decoration: underline;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .external {
+    width: 0.75rem;
+    height: 0.75rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .login {
