@@ -19,6 +19,7 @@ pub const CALIBRATION_LOOKBACK: Span = Span::days(30);
 pub struct Report {
     pub accurate_mode: bool,
     pub status: OAuthStatus,
+    pub official_updated_at: Option<Timestamp>,
     pub preferences: Preferences,
     pub summary: UsageSummary,
     pub estimates: Vec<Estimate>,
@@ -130,12 +131,18 @@ impl Engine {
         } else {
             Vec::new()
         };
+        let official_updated_at = if limits.is_empty() {
+            None
+        } else {
+            self.last_official_at()?
+        };
         let events = self.database.events_in(summary::lookback(&limits, now))?;
         let summary = summary::summarize(limits, &events, now);
         let manual = self.manual_readings(&summary, now)?;
         Ok(Report {
             accurate_mode,
             status: self.status,
+            official_updated_at,
             preferences: self.database.preferences()?,
             estimates: self.estimates(&summary, &manual, now)?,
             manual,

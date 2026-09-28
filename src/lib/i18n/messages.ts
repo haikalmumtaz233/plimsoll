@@ -47,6 +47,7 @@ export interface Messages {
   status: {
     estimate: string;
     active: string;
+    updatedAgo: (age: string) => string;
     syncing: string;
     reasons: Record<FallbackStatus, string>;
   };
@@ -147,6 +148,7 @@ export const en: Messages = {
   status: {
     estimate: "Local estimate",
     active: "Official",
+    updatedAgo: (age) => `${age} ago`,
     syncing: "Showing the last official reading while it reconnects",
     reasons: {
       pending: "Connecting…",
@@ -256,6 +258,7 @@ export const id: Messages = {
   status: {
     estimate: "Estimasi lokal",
     active: "Resmi",
+    updatedAgo: (age) => `${age} lalu`,
     syncing: "Menampilkan data resmi terakhir sambil menghubungkan ulang",
     reasons: {
       pending: "Menghubungkan…",

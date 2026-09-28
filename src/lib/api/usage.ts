@@ -110,6 +110,7 @@ export interface UsageView {
   breakdown: BreakdownsView;
   autostart: boolean;
   generatedAt: number;
+  officialUpdatedAt: number | null;
 }
 
 export function loadUsage(): Promise<UsageView> {

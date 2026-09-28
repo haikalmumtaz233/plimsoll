@@ -80,6 +80,17 @@ export function isSyncing(
   return accurateMode && showingLimits && status !== "active" && status !== "disabled";
 }
 
+export function updatedText(
+  updatedAt: number | null,
+  now: number,
+  messages: Messages,
+): string | null {
+  if (updatedAt === null) {
+    return null;
+  }
+  return messages.status.updatedAgo(formatCountdown(now - updatedAt, messages));
+}
+
 export function alertText(alert: AlertView): string {
   return `${alert.title}. ${alert.body}`;
 }
