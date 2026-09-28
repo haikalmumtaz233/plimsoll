@@ -2,6 +2,7 @@
   import type { LimitView, ThresholdsView } from "../api/usage";
   import type { Messages } from "../i18n/messages";
   import { formatPercent, limitTitle, resetText } from "../usage/format";
+  import { paceFraction } from "../usage/pace";
 
   interface Props {
     messages: Messages;
@@ -14,6 +15,7 @@
 
   const titleId = $derived(`limit-${limit.kind}`);
   const reset = $derived(resetText(limit.resetsAt, now, messages));
+  const pace = $derived(paceFraction(limit.kind, limit.resetsAt, now));
 </script>
 
 <section class="card" aria-labelledby={titleId}>
@@ -24,18 +26,23 @@
     {/if}
   </div>
   <p class="value">{formatPercent(limit.percent)}</p>
-  <meter
-    class="meter"
-    aria-labelledby={titleId}
-    min="0"
-    max="100"
-    low={thresholds.elevated}
-    high={thresholds.high}
-    optimum="0"
-    value={Math.min(Math.max(limit.percent, 0), 100)}
-  >
-    {formatPercent(limit.percent)}
-  </meter>
+  <div class="track">
+    <meter
+      class="meter"
+      aria-labelledby={titleId}
+      min="0"
+      max="100"
+      low={thresholds.elevated}
+      high={thresholds.high}
+      optimum="0"
+      value={Math.min(Math.max(limit.percent, 0), 100)}
+    >
+      {formatPercent(limit.percent)}
+    </meter>
+    {#if pace !== null}
+      <span class="pace" style:left={`${String(pace * 100)}%`} aria-hidden="true"></span>
+    {/if}
+  </div>
 </section>
 
 <style>
@@ -67,7 +74,22 @@
     gap: 0 var(--space-2);
   }
 
+  .track {
+    position: relative;
+  }
+
+  .pace {
+    position: absolute;
+    top: -0.125rem;
+    width: 0.125rem;
+    height: 0.75rem;
+    margin-left: -0.0625rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-text);
+  }
+
   .meter {
+    display: block;
     appearance: none;
     width: 100%;
     height: 0.5rem;
@@ -105,6 +127,11 @@
   }
 
   @media (forced-colors: active) {
+    .pace {
+      forced-color-adjust: none;
+      background: CanvasText;
+    }
+
     .meter,
     .meter::-webkit-meter-bar {
       border: 0.0625rem solid CanvasText;
