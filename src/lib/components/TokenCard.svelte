@@ -25,7 +25,7 @@
   {#if hasUsage}
     <p class="value">{formatTokens(usage.tokens, messages)}</p>
     {#if estimate !== undefined}
-      <p class="estimate">{estimateText(estimate, now, messages)}</p>
+      <p class="estimate">{estimateText(estimate, messages)}</p>
     {/if}
     {#if reset !== null}
       <p class="muted">{reset}</p>

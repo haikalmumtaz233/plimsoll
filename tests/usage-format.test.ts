@@ -134,17 +134,13 @@ describe("estimates", () => {
   });
 
   it("describes estimates in both languages", () => {
-    expect(estimateText(estimate, 0, en)).toBe(
-      "About 42% of the limit, estimated from 3 past windows",
-    );
-    expect(estimateText(estimate, 0, id)).toBe(
-      "Sekitar 42% dari limit, estimasi dari 3 jendela sebelumnya",
-    );
+    expect(estimateText(estimate, en)).toBe("≈ 42% of limit");
+    expect(estimateText(estimate, id)).toBe("≈ 42% dari limit");
   });
 });
 
 describe("manual estimates", () => {
-  it("mention the entered value and its age", () => {
+  it("are marked as manual", () => {
     const manual = {
       kind: "five_hour" as const,
       percent: 45.2,
@@ -153,11 +149,7 @@ describe("manual estimates", () => {
       enteredPercent: 42,
       enteredAt: 0,
     };
-    expect(estimateText(manual, 20 * MINUTE, en)).toBe(
-      "About 45% of the limit, based on your entry of 42% 20m ago",
-    );
-    expect(estimateText(manual, 20 * MINUTE, id)).toBe(
-      "Sekitar 45% dari limit, dari isian manual 42% 20 menit lalu",
-    );
+    expect(estimateText(manual, en)).toBe("≈ 45% of limit · manual");
+    expect(estimateText(manual, id)).toBe("≈ 45% dari limit · manual");
   });
 });
