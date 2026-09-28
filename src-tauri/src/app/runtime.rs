@@ -25,7 +25,7 @@ use crate::domain::plan::Plan;
 use crate::domain::preferences::{Language, Preferences};
 use crate::domain::refresh::{
     Activity, Attempts, FallbackState, MIN_SPACING, ManualRefresh, adaptive_delay,
-    cli_fallback_due, is_outdated, manual_refresh,
+    cli_fallback_due, fallback_is_recent, is_outdated, manual_refresh,
 };
 use crate::error::AppError;
 use crate::i18n::Text;
@@ -59,6 +59,7 @@ struct SyncState {
     attempts: Attempts,
     failures: u32,
     cli_last_run: Option<Timestamp>,
+    cli_last_success: Option<Timestamp>,
 }
 
 struct Shared {
@@ -605,6 +606,7 @@ fn run_cli_fallback<R: Runtime>(app: &AppHandle<R>) {
         &format!("usage fallback read {} limits", snapshots.len()),
     );
     with_engine(app, |engine| engine.record_cli(&snapshots, now));
+    update_sync(app, |state| state.cli_last_success = Some(now));
     announce_new_readings(app, now);
 }
 
@@ -692,11 +694,9 @@ fn freshness<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) ->
         return Freshness::Current;
     };
     let expected = Span::from_duration(cadence(app));
-    if is_outdated(
-        report.status == OAuthStatus::Active,
-        now - updated_at,
-        expected,
-    ) {
+    let healthy = report.status == OAuthStatus::Active
+        || fallback_is_recent(sync_state(app).cli_last_success, now);
+    if is_outdated(healthy, now - updated_at, expected) {
         Freshness::Outdated
     } else {
         Freshness::Current
