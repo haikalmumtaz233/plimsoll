@@ -1,6 +1,8 @@
 use std::fs;
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
+use std::process::Child;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
@@ -26,6 +28,7 @@ use crate::domain::refresh::{
 };
 use crate::error::AppError;
 use crate::i18n::Text;
+use crate::sources::cli::login;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
 use crate::sources::oauth::poll::{self, PollResult};
@@ -59,6 +62,7 @@ struct Shared {
     wake: Arc<Notify>,
     sync: Mutex<SyncState>,
     plan: Mutex<Option<Plan>>,
+    login_running: AtomicBool,
     watcher: Mutex<Option<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
@@ -84,6 +88,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         wake: Arc::new(Notify::new()),
         sync: Mutex::new(SyncState::default()),
         plan: Mutex::new(None),
+        login_running: AtomicBool::new(false),
         watcher: Mutex::new(None),
         refresh,
         menu_language: Mutex::new(None),
@@ -130,6 +135,57 @@ pub fn refresh_now<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     publish(app)
 }
 
+pub fn open_login<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
+    let shared = app.try_state::<Shared>()?;
+    let needs_login = with_engine(app, |engine| {
+        Ok(engine.accurate_mode()?
+            && matches!(
+                engine.status(),
+                OAuthStatus::SignedOut | OAuthStatus::TokenExpired
+            ))
+    })?;
+    if !needs_login || shared.login_running.swap(true, Ordering::SeqCst) {
+        return None;
+    }
+    match login::open_login() {
+        Ok(child) => {
+            diagnostics::info("cli", "opened the claude code login window");
+            watch_login(app.clone(), child);
+            publish(app)
+        }
+        Err(error) => {
+            shared.login_running.store(false, Ordering::SeqCst);
+            diagnostics::error("cli", &format!("failed to open the login: {error}"));
+            None
+        }
+    }
+}
+
+fn watch_login<R: Runtime>(app: AppHandle<R>, mut child: Child) {
+    thread::spawn(move || {
+        match child.wait() {
+            Ok(status) => {
+                diagnostics::info("cli", &format!("claude code login finished ({status})"));
+            }
+            Err(error) => {
+                diagnostics::warn("cli", &format!("lost track of the login window: {error}"));
+            }
+        }
+        if let Some(shared) = app.try_state::<Shared>() {
+            shared.login_running.store(false, Ordering::SeqCst);
+        }
+        if with_engine(&app, |engine| engine.accurate_mode()) == Some(true) {
+            start_poller(&app);
+        }
+        publish(&app);
+    });
+}
+
+fn login_running<R: Runtime>(app: &AppHandle<R>) -> bool {
+    app.try_state::<Shared>()
+        .is_some_and(|shared| shared.login_running.load(Ordering::SeqCst))
+}
+
 fn view_of<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> UsageView {
     UsageView::from_report(
         report,
@@ -138,6 +194,7 @@ fn view_of<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> U
             autostart: autostart_enabled(app),
             refresh: manual_state(app, now),
             plan: current_plan(app),
+            login_running: login_running(app),
             now,
         },
     )

@@ -24,6 +24,8 @@ pub enum CommandError {
     InvalidManual,
     #[error("the popup could not be hidden")]
     Popup,
+    #[error("the claude code login could not be opened")]
+    Login,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -87,6 +89,12 @@ pub fn usage_summary<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, Command
 #[allow(clippy::needless_pass_by_value)]
 pub fn refresh_now<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, CommandError> {
     runtime::refresh_now(&app).ok_or(CommandError::Unavailable)
+}
+
+#[tauri::command(async)]
+#[allow(clippy::needless_pass_by_value)]
+pub fn open_login<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, CommandError> {
+    runtime::open_login(&app).ok_or(CommandError::Login)
 }
 
 #[tauri::command(async)]

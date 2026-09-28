@@ -135,12 +135,24 @@ impl RefreshView {
     }
 }
 
+#[must_use]
+pub const fn login_state(status: OAuthStatus, accurate_mode: bool, running: bool) -> &'static str {
+    if running {
+        return "running";
+    }
+    match status {
+        OAuthStatus::SignedOut | OAuthStatus::TokenExpired if accurate_mode => "ready",
+        _ => "hidden",
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ViewContext {
     pub language: Language,
     pub autostart: bool,
     pub refresh: ManualRefresh,
     pub plan: Option<Plan>,
+    pub login_running: bool,
     pub now: Timestamp,
 }
 
@@ -182,6 +194,7 @@ pub struct UsageView {
     pub autostart: bool,
     pub refresh: RefreshView,
     pub plan: Option<String>,
+    pub login: &'static str,
     pub generated_at: i64,
 }
 
@@ -193,6 +206,7 @@ impl UsageView {
             autostart,
             refresh,
             plan,
+            login_running,
             now,
         } = context;
         Self {
@@ -218,6 +232,7 @@ impl UsageView {
             autostart,
             refresh: RefreshView::new(refresh),
             plan: plan.filter(|_| report.accurate_mode).map(Plan::label),
+            login: login_state(report.status, report.accurate_mode, login_running),
             generated_at: now.unix_millis(),
         }
     }
@@ -319,7 +334,7 @@ fn token_view(window: TokenWindow) -> TokenView {
 
 #[cfg(test)]
 mod tests {
-    use super::{RefreshView, UsageView, ViewContext};
+    use super::{RefreshView, UsageView, ViewContext, login_state};
     use crate::app::engine::Report;
     use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking, Share};
     use crate::domain::calibration::{Basis, Estimate};
@@ -405,6 +420,7 @@ mod tests {
                     kind: PlanKind::Max,
                     multiplier: Some(5),
                 }),
+                login_running: false,
                 now: NOW,
             },
         ))
@@ -463,6 +479,7 @@ mod tests {
                     "readyAt": (NOW + Span::minutes(1)).unix_millis()
                 },
                 "plan": "Max 5x",
+                "login": "hidden",
                 "generatedAt": NOW.unix_millis()
             })
         );
@@ -485,10 +502,20 @@ mod tests {
                     kind: PlanKind::Pro,
                     multiplier: None,
                 }),
+                login_running: false,
                 now: NOW,
             },
         );
         assert_eq!(view.plan, None);
+    }
+
+    #[test]
+    fn login_is_offered_only_when_claude_code_needs_it() {
+        assert_eq!(login_state(OAuthStatus::SignedOut, true, false), "ready");
+        assert_eq!(login_state(OAuthStatus::TokenExpired, true, false), "ready");
+        assert_eq!(login_state(OAuthStatus::SignedOut, false, false), "hidden");
+        assert_eq!(login_state(OAuthStatus::Retrying, true, false), "hidden");
+        assert_eq!(login_state(OAuthStatus::Active, true, true), "running");
     }
 
     #[test]
