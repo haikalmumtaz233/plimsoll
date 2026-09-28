@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The popup shows less text: a small status badge replaces the status sentence, estimates read as "≈ 42% of limit", and reset countdowns sit beside each card title.
+- Settings opens with accurate mode, drops the help paragraphs, shows the refresh interval only in accurate mode, and keeps the accurate mode warnings short.
+- Manual percentages are dimmed, locked and marked with a lock icon while official data is shown, because they are not used then.
+- The settings button in the header is an icon.
+
 ## [0.5.0-rc.1] - 2026-09-27
 
 ### Changed
