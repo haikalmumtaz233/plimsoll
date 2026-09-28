@@ -18,6 +18,7 @@ pub const CALIBRATION_LOOKBACK: Span = Span::days(30);
 #[derive(Debug, Clone, PartialEq)]
 pub struct Report {
     pub accurate_mode: bool,
+    pub cli_fallback: bool,
     pub status: OAuthStatus,
     pub official_updated_at: Option<Timestamp>,
     pub preferences: Preferences,
@@ -71,6 +72,25 @@ impl Engine {
         } else {
             OAuthStatus::Disabled
         };
+        Ok(())
+    }
+
+    pub fn cli_fallback(&self) -> Result<bool, DatabaseError> {
+        self.database.cli_fallback_enabled()
+    }
+
+    pub fn set_cli_fallback(&mut self, enabled: bool) -> Result<(), DatabaseError> {
+        self.database.set_cli_fallback(enabled)
+    }
+
+    pub fn record_cli(
+        &mut self,
+        snapshots: &[LimitSnapshot],
+        now: Timestamp,
+    ) -> Result<(), DatabaseError> {
+        if self.accurate_mode()? && self.cli_fallback()? {
+            self.database.insert_snapshots(now, snapshots)?;
+        }
         Ok(())
     }
 
@@ -145,6 +165,7 @@ impl Engine {
         let manual = self.manual_readings(&summary, now)?;
         Ok(Report {
             accurate_mode,
+            cli_fallback: self.cli_fallback()?,
             status: self.status,
             official_updated_at,
             preferences: self.database.preferences()?,
@@ -479,6 +500,30 @@ mod tests {
             .set_manual_reading(LimitKind::FiveHour, None, NOW)
             .expect("clear");
         assert!(engine.report(NOW).expect("report").estimates.is_empty());
+    }
+
+    #[test]
+    fn cli_readings_count_only_with_both_opt_ins() {
+        let mut engine = engine();
+        engine.record_cli(&[five_hour(30.0)], NOW).expect("ignored");
+        engine.set_accurate_mode(true).expect("opt in");
+        engine
+            .record_cli(&[five_hour(30.0)], NOW)
+            .expect("still ignored");
+        assert!(
+            engine
+                .report(NOW)
+                .expect("report")
+                .summary
+                .limits
+                .is_empty()
+        );
+
+        engine.set_cli_fallback(true).expect("fallback");
+        engine.record_cli(&[five_hour(30.0)], NOW).expect("record");
+        let report = engine.report(NOW).expect("report");
+        assert!(report.cli_fallback);
+        assert_eq!(report.summary.limits, vec![five_hour(30.0)]);
     }
 
     #[test]

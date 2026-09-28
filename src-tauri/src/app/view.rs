@@ -181,6 +181,7 @@ impl AlertView {
 #[serde(rename_all = "camelCase")]
 pub struct UsageView {
     pub accurate_mode: bool,
+    pub cli_fallback: bool,
     pub status: OAuthStatus,
     pub official_updated_at: Option<i64>,
     pub preferences: PreferencesView,
@@ -211,6 +212,7 @@ impl UsageView {
         } = context;
         Self {
             accurate_mode: report.accurate_mode,
+            cli_fallback: report.cli_fallback,
             status: report.status,
             official_updated_at: report.official_updated_at.map(Timestamp::unix_millis),
             preferences: preferences_view(report.preferences, language),
@@ -355,6 +357,7 @@ mod tests {
     fn sample_report(window: Window) -> Report {
         Report {
             accurate_mode: true,
+            cli_fallback: false,
             status: OAuthStatus::Active,
             official_updated_at: Some(NOW - Span::minutes(3)),
             preferences: Preferences::default(),
@@ -429,6 +432,7 @@ mod tests {
             value,
             json!({
                 "accurateMode": true,
+                "cliFallback": false,
                 "status": "active",
                 "officialUpdatedAt": (NOW - Span::minutes(3)).unix_millis(),
                 "preferences": {

@@ -9,6 +9,7 @@ use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
 use crate::domain::severity::{Severity, Thresholds};
 
 const OAUTH_OPT_IN: &str = "oauth.opt_in";
+const CLI_FALLBACK: &str = "cli.fallback";
 const ALERT_THRESHOLDS: &str = "alerts.thresholds";
 const POLL_MINUTES: &str = "oauth.poll_minutes";
 const LANGUAGE: &str = "ui.language";
@@ -142,6 +143,14 @@ impl Database {
 
     pub fn set_oauth_opted_in(&self, opted_in: bool) -> Result<(), DatabaseError> {
         self.set_setting(OAUTH_OPT_IN, if opted_in { ENABLED } else { DISABLED })
+    }
+
+    pub fn cli_fallback_enabled(&self) -> Result<bool, DatabaseError> {
+        Ok(self.setting(CLI_FALLBACK)?.as_deref() == Some(ENABLED))
+    }
+
+    pub fn set_cli_fallback(&self, enabled: bool) -> Result<(), DatabaseError> {
+        self.set_setting(CLI_FALLBACK, if enabled { ENABLED } else { DISABLED })
     }
 
     pub fn setting(&self, name: &str) -> Result<Option<String>, DatabaseError> {
@@ -391,6 +400,18 @@ mod tests {
         assert!(database.oauth_opted_in().expect("opted in"));
         database.set_oauth_opted_in(false).expect("opt out");
         assert!(!database.oauth_opted_in().expect("opted out"));
+    }
+
+    #[test]
+    fn the_cli_fallback_is_off_until_chosen() {
+        let database = Database::open_in_memory().expect("open");
+        assert!(!database.cli_fallback_enabled().expect("default"));
+        database.set_cli_fallback(true).expect("enable");
+        assert!(database.cli_fallback_enabled().expect("enabled"));
+        database
+            .set_setting("cli.fallback", "maybe")
+            .expect("write");
+        assert!(!database.cli_fallback_enabled().expect("corrupt"));
     }
 
     #[test]
