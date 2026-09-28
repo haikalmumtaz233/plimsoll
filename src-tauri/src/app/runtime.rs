@@ -19,6 +19,7 @@ use crate::diagnostics;
 use crate::domain::alerts::Alert;
 use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, Utilization};
+use crate::domain::plan::Plan;
 use crate::domain::preferences::{Language, Preferences};
 use crate::domain::refresh::{
     Activity, Attempts, MIN_SPACING, ManualRefresh, adaptive_delay, is_outdated, manual_refresh,
@@ -57,6 +58,7 @@ struct Shared {
     poller: Mutex<Option<JoinHandle<()>>>,
     wake: Arc<Notify>,
     sync: Mutex<SyncState>,
+    plan: Mutex<Option<Plan>>,
     watcher: Mutex<Option<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
@@ -81,6 +83,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         poller: Mutex::new(None),
         wake: Arc::new(Notify::new()),
         sync: Mutex::new(SyncState::default()),
+        plan: Mutex::new(None),
         watcher: Mutex::new(None),
         refresh,
         menu_language: Mutex::new(None),
@@ -134,6 +137,7 @@ fn view_of<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> U
             language: locale::resolve(report.preferences.language),
             autostart: autostart_enabled(app),
             refresh: manual_state(app, now),
+            plan: current_plan(app),
             now,
         },
     )
@@ -413,6 +417,9 @@ fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
     update_sync(app, |state| state.attempts.last = Some(now));
     let previous = with_engine(app, |engine| Ok(engine.status()));
     log_oauth(previous, result);
+    if result.is_ok() {
+        remember_plan(app);
+    }
     let outcome = with_engine(app, |engine| {
         engine.record_oauth(result, now)?;
         Ok((engine.take_alerts(now)?, engine.preferences()?.language))
@@ -424,6 +431,26 @@ fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
             announce(app, alert, text, now);
         }
     }
+}
+
+fn remember_plan<R: Runtime>(app: &AppHandle<R>) {
+    let Some(shared) = app.try_state::<Shared>() else {
+        return;
+    };
+    let plan = match credentials::credentials_path().map(|path| credentials::read_plan(&path)) {
+        Some(Ok(plan)) => plan,
+        Some(Err(error)) => {
+            diagnostics::warn("oauth", &format!("failed to read the plan: {error}"));
+            None
+        }
+        None => None,
+    };
+    *shared.plan.lock().unwrap_or_else(PoisonError::into_inner) = plan;
+}
+
+fn current_plan<R: Runtime>(app: &AppHandle<R>) -> Option<Plan> {
+    let shared = app.try_state::<Shared>()?;
+    *shared.plan.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn log_oauth(previous: Option<OAuthStatus>, result: &PollResult) {
