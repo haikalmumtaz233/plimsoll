@@ -85,6 +85,12 @@ pub fn usage_summary<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, Command
 
 #[tauri::command(async)]
 #[allow(clippy::needless_pass_by_value)]
+pub fn refresh_now<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, CommandError> {
+    runtime::refresh_now(&app).ok_or(CommandError::Unavailable)
+}
+
+#[tauri::command(async)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn set_accurate_mode<R: Runtime>(
     app: AppHandle<R>,
     enabled: bool,

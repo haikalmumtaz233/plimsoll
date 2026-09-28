@@ -9,6 +9,7 @@ use crate::domain::history::{BUCKET, HourlyHistory};
 use crate::domain::limit::LimitSnapshot;
 use crate::domain::period::Window;
 use crate::domain::preferences::{Language, PollInterval, Preferences};
+use crate::domain::refresh::ManualRefresh;
 use crate::domain::summary::TokenWindow;
 use crate::sources::oauth::status::OAuthStatus;
 use crate::toast::Message;
@@ -102,6 +103,45 @@ pub struct PreferencesView {
     pub resolved_language: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefreshView {
+    pub state: &'static str,
+    pub ready_at: Option<i64>,
+}
+
+impl RefreshView {
+    #[must_use]
+    pub const fn new(refresh: ManualRefresh) -> Self {
+        match refresh {
+            ManualRefresh::Ready => Self {
+                state: "ready",
+                ready_at: None,
+            },
+            ManualRefresh::Running => Self {
+                state: "running",
+                ready_at: None,
+            },
+            ManualRefresh::CoolingDown { until } => Self {
+                state: "cooling",
+                ready_at: Some(until.unix_millis()),
+            },
+            ManualRefresh::Blocked => Self {
+                state: "blocked",
+                ready_at: None,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ViewContext {
+    pub language: Language,
+    pub autostart: bool,
+    pub refresh: ManualRefresh,
+    pub now: Timestamp,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AlertView {
@@ -138,17 +178,19 @@ pub struct UsageView {
     pub history: HistoryView,
     pub breakdown: BreakdownsView,
     pub autostart: bool,
+    pub refresh: RefreshView,
     pub generated_at: i64,
 }
 
 impl UsageView {
     #[must_use]
-    pub fn from_report(
-        report: &Report,
-        language: Language,
-        autostart: bool,
-        now: Timestamp,
-    ) -> Self {
+    pub fn from_report(report: &Report, context: ViewContext) -> Self {
+        let ViewContext {
+            language,
+            autostart,
+            refresh,
+            now,
+        } = context;
         Self {
             accurate_mode: report.accurate_mode,
             status: report.status,
@@ -170,6 +212,7 @@ impl UsageView {
             history: history_view(&report.summary.history),
             breakdown: breakdowns_view(&report.summary.breakdowns),
             autostart,
+            refresh: RefreshView::new(refresh),
             generated_at: now.unix_millis(),
         }
     }
@@ -271,7 +314,7 @@ fn token_view(window: TokenWindow) -> TokenView {
 
 #[cfg(test)]
 mod tests {
-    use super::UsageView;
+    use super::{RefreshView, UsageView, ViewContext};
     use crate::app::engine::Report;
     use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking, Share};
     use crate::domain::calibration::{Basis, Estimate};
@@ -280,6 +323,7 @@ mod tests {
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::period::Window;
     use crate::domain::preferences::{Language, Preferences};
+    use crate::domain::refresh::ManualRefresh;
     use crate::domain::summary::{TokenWindow, UsageSummary};
     use crate::domain::tokens::TokenCounts;
     use crate::sources::oauth::status::OAuthStatus;
@@ -345,9 +389,14 @@ mod tests {
         let report = sample_report(window);
         let value = serde_json::to_value(UsageView::from_report(
             &report,
-            Language::Indonesian,
-            true,
-            NOW,
+            ViewContext {
+                language: Language::Indonesian,
+                autostart: true,
+                refresh: ManualRefresh::CoolingDown {
+                    until: NOW + Span::minutes(1),
+                },
+                now: NOW,
+            },
         ))
         .expect("json");
         assert_eq!(
@@ -399,8 +448,20 @@ mod tests {
                     }
                 },
                 "autostart": true,
+                "refresh": {
+                    "state": "cooling",
+                    "readyAt": (NOW + Span::minutes(1)).unix_millis()
+                },
                 "generatedAt": NOW.unix_millis()
             })
         );
+    }
+
+    #[test]
+    fn refresh_states_have_stable_names() {
+        assert_eq!(RefreshView::new(ManualRefresh::Ready).state, "ready");
+        assert_eq!(RefreshView::new(ManualRefresh::Running).state, "running");
+        assert_eq!(RefreshView::new(ManualRefresh::Blocked).state, "blocked");
+        assert_eq!(RefreshView::new(ManualRefresh::Blocked).ready_at, None);
     }
 }
