@@ -1,5 +1,7 @@
 use std::ops::{Add, Sub};
+use std::time::Duration;
 
+const MILLIS_PER_MINUTE: i64 = 60_000;
 const MILLIS_PER_HOUR: i64 = 3_600_000;
 const MILLIS_PER_DAY: i64 = 86_400_000;
 
@@ -32,6 +34,11 @@ impl Span {
     }
 
     #[must_use]
+    pub const fn minutes(minutes: i64) -> Self {
+        Self(minutes.saturating_mul(MILLIS_PER_MINUTE))
+    }
+
+    #[must_use]
     pub const fn hours(hours: i64) -> Self {
         Self(hours.saturating_mul(MILLIS_PER_HOUR))
     }
@@ -44,6 +51,11 @@ impl Span {
     #[must_use]
     pub const fn millis(self) -> i64 {
         self.0
+    }
+
+    #[must_use]
+    pub fn to_duration(self) -> Duration {
+        Duration::from_millis(u64::try_from(self.0).unwrap_or(0))
     }
 }
 
@@ -74,6 +86,13 @@ impl Sub for Timestamp {
 #[cfg(test)]
 mod tests {
     use super::{Span, Timestamp};
+
+    #[test]
+    fn minutes_and_durations_convert() {
+        assert_eq!(Span::minutes(2).millis(), 120_000);
+        assert_eq!(Span::minutes(2).to_duration().as_secs(), 120);
+        assert_eq!(Span::from_millis(-5).to_duration().as_millis(), 0);
+    }
 
     #[test]
     fn named_spans_have_expected_lengths() {

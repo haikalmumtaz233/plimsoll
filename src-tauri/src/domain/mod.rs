@@ -9,6 +9,7 @@ pub mod manual;
 pub mod period;
 pub mod preferences;
 pub mod record;
+pub mod refresh;
 pub mod session;
 pub mod severity;
 pub mod summary;
