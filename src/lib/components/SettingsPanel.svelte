@@ -23,6 +23,7 @@
     onmanualsave: (kind: LimitKind, percent: number | null) => Promise<boolean>;
     autostart: boolean;
     onautostartchange: (enabled: boolean) => Promise<boolean>;
+    officialActive: boolean;
   }
 
   let {
@@ -36,6 +37,7 @@
     onmanualsave,
     autostart,
     onautostartchange,
+    officialActive,
   }: Props = $props();
 
   let startupBusy = $state(false);
@@ -167,7 +169,7 @@
   {#if startupError !== ""}
     <p class="error" role="alert">{startupError}</p>
   {/if}
-  <ManualPercent {messages} {manual} {now} onsave={onmanualsave} />
+  <ManualPercent {messages} {manual} {now} onsave={onmanualsave} inactive={officialActive} />
 </section>
 
 <style>

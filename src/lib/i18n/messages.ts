@@ -31,7 +31,7 @@ export interface Messages {
   manualEstimate: (percent: string) => string;
   manual: {
     title: string;
-    help: string;
+    inactive: string;
     save: string;
     clear: string;
     invalid: string;
@@ -129,12 +129,12 @@ export const en: Messages = {
   manualEstimate: (percent) => `≈ ${percent} of limit · manual`,
   manual: {
     title: "Manual percentage",
-    help: "When official data is unavailable, enter the percentage shown by /usage in Claude Code or on claude.ai. It is used until that limit could have reset.",
+    inactive: "Not used while official data is shown",
     save: "Set",
     clear: "Clear",
     invalid: "Enter a number from 0 to 100.",
     failed: "Could not save the manual percentage. Try again.",
-    entered: (percent, age) => `Entered ${percent}, ${age} ago`,
+    entered: (percent, age) => `${percent} · ${age} ago`,
   },
   windows: {
     fiveHour: "5-hour window",
@@ -236,12 +236,12 @@ export const id: Messages = {
   manualEstimate: (percent) => `≈ ${percent} dari limit · manual`,
   manual: {
     title: "Persentase manual",
-    help: "Saat data resmi tidak tersedia, isi persentase yang ditampilkan /usage di Claude Code atau di claude.ai. Nilainya dipakai sampai limit tersebut mungkin sudah reset.",
+    inactive: "Tidak dipakai saat data resmi tampil",
     save: "Atur",
     clear: "Hapus",
     invalid: "Isi angka dari 0 sampai 100.",
     failed: "Gagal menyimpan persentase manual. Coba lagi.",
-    entered: (percent, age) => `Diisi ${percent}, ${age} lalu`,
+    entered: (percent, age) => `${percent} · ${age} lalu`,
   },
   windows: {
     fiveHour: "Jendela 5 jam",
