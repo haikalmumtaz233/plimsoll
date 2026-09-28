@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- A local diagnostic log in `%LOCALAPPDATA%\com.haikalmumtaz.plimsoll\logs` (up to three files of 1 MB each). It records refresh failures with their HTTP status and retry hint, database and file errors, and fallback results, never tokens, headers, response bodies or conversation content.
+- A refresh button beside the status badge. It waits a minute between requests and does not cut a retry pause short.
+- The tray icon dims, and its tooltip says so, when the official reading is out of date or the last refresh failed.
+- The popup header shows your Claude plan, such as Pro or Max 5x, while accurate mode is on.
+- A "Log in to Claude Code" button appears when Claude Code is signed out or its sign-in has expired. It opens Claude Code's own login in a new window.
+- Claude Code logs are also read from `%USERPROFILE%\.config\claude\projects` and from Claude Desktop's local Claude Code folders when they exist.
+- An opt-in fallback in accurate mode: after two failed refreshes or an expired sign-in, Plimsoll asks Claude Code for its `/usage` panel in the background, at most every 10 minutes.
+- The pace marker explains itself in a tooltip and to screen readers, and a link opens the usage page on claude.ai in your browser.
+
+### Changed
+
+- A saved refresh interval of 1 minute moves to Adaptive once, because polling every minute triggered rate limits.
+
 ## [0.6.0-rc.2] - 2026-09-28
 
 ### Added
