@@ -47,6 +47,7 @@ export interface Messages {
   status: {
     estimate: string;
     active: string;
+    syncing: string;
     reasons: Record<FallbackStatus, string>;
   };
   history: {
@@ -145,6 +146,7 @@ export const en: Messages = {
   status: {
     estimate: "Local estimate",
     active: "Official",
+    syncing: "Showing the last official reading while it reconnects",
     reasons: {
       pending: "Connecting…",
       signed_out: "Claude Code signed out",
@@ -252,6 +254,7 @@ export const id: Messages = {
   status: {
     estimate: "Estimasi lokal",
     active: "Resmi",
+    syncing: "Menampilkan data resmi terakhir sambil menghubungkan ulang",
     reasons: {
       pending: "Menghubungkan…",
       signed_out: "Claude Code belum login",
