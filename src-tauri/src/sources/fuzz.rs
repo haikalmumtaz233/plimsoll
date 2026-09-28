@@ -1,11 +1,12 @@
 use std::io::{BufReader, Cursor};
 
+use super::cli::usage_text;
 use super::jsonl::line;
 use super::jsonl::reader::{LineRead, read_line_bounded};
 use super::oauth::credentials::{parse_access_token, parse_plan};
 use super::oauth::response;
 use super::rfc3339;
-use crate::domain::clock::Timestamp;
+use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::LimitKind;
 
 const ROUNDS: usize = 20_000;
@@ -63,6 +64,11 @@ const TIMESTAMP_SEEDS: &[&[u8]] = &[
 const OAUTH_SEEDS: &[&[u8]] = &[
     br#"{"limits":[{"kind":"session","percent":42.5,"resets_at":"2026-09-26T05:30:00Z"},{"kind":"weekly_all","percent":12,"resets_at":null}]}"#,
     br#"{"five_hour":{"utilization":81.0,"resets_at":"2026-09-26T05:30:00.000000+00:00"},"seven_day":{"utilization":3}}"#,
+];
+
+const USAGE_TEXT_SEEDS: &[&[u8]] = &[
+    "Current session: 31% used \u{b7} resets Sep 29, 1:59am (Asia/Jakarta)\nCurrent week (all models): 12.5% used \u{b7} resets Oct 5, 6:59am (Asia/Jakarta)\n".as_bytes(),
+    b"\x1b[1mCurrent session\x1b[22m: 74% left \xc2\xb7 resets 11:30pm (UTC)\r\nCurrent week: 9% used \xc2\xb7 resets Jan 2 at 7am (UTC)",
 ];
 
 const CREDENTIAL_SEEDS: &[&[u8]] = &[
@@ -212,6 +218,28 @@ fn credentials_never_panic_and_never_yield_an_empty_token() {
         if let Ok(token) = parse_access_token(&input, NOW) {
             parsed += 1;
             assert!(!token.secret().is_empty());
+        }
+    }
+    assert!(parsed > 0);
+}
+
+#[test]
+fn usage_text_never_panics_and_yields_valid_limits() {
+    let mut mutator = Mutator::new(0x5eed_0007);
+    let mut parsed = 0;
+    for round in 0..ROUNDS {
+        let input = mutator.input(USAGE_TEXT_SEEDS);
+        let text = String::from_utf8_lossy(&input);
+        let offset = Span::minutes(i64::try_from(round % 1_681).unwrap_or(0) - 840);
+        let snapshots = usage_text::parse(&text, NOW, offset);
+        parsed += usize::from(!snapshots.is_empty());
+        assert!(snapshots.len() <= 2);
+        for snapshot in snapshots {
+            assert!((0.0..=100.0).contains(&snapshot.utilization.percent()));
+            if let Some(resets_at) = snapshot.resets_at {
+                assert!(resets_at > NOW - Span::days(2));
+                assert!(resets_at < NOW + Span::days(400));
+            }
         }
     }
     assert!(parsed > 0);

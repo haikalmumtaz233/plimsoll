@@ -105,6 +105,24 @@ pub fn format(at: Timestamp) -> String {
     format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{fraction:03}Z")
 }
 
+#[must_use]
+pub fn from_civil(year: i64, month: i64, day: i64, minute_of_day: i64) -> Option<Timestamp> {
+    let valid = (1..=12).contains(&month)
+        && (1..=days_in_month(year, month)).contains(&day)
+        && (0..MINUTES_PER_DAY).contains(&minute_of_day);
+    valid.then(|| {
+        Timestamp::from_unix_millis(
+            (days_from_civil(year, month, day) * MINUTES_PER_DAY + minute_of_day)
+                * MILLIS_PER_MINUTE,
+        )
+    })
+}
+
+#[must_use]
+pub const fn civil_date(at: Timestamp) -> (i64, i64, i64) {
+    civil_from_days(at.unix_millis().div_euclid(MILLIS_PER_DAY))
+}
+
 const fn civil_from_days(days: i64) -> (i64, i64, i64) {
     let shifted = days + DAYS_BEFORE_UNIX_EPOCH;
     let era = shifted.div_euclid(DAYS_PER_ERA);
@@ -184,6 +202,16 @@ mod tests {
             format(Timestamp::from_unix_millis(1_709_164_800_000)),
             "2024-02-29T00:00:00.000Z"
         );
+    }
+
+    #[test]
+    fn civil_dates_convert_both_ways() {
+        let at = super::from_civil(2026, 9, 28, 15 * 60 + 30).expect("valid date");
+        assert_eq!(format(at), "2026-09-28T15:30:00.000Z");
+        assert_eq!(super::civil_date(at), (2026, 9, 28));
+        assert_eq!(super::from_civil(2026, 2, 29, 0), None);
+        assert_eq!(super::from_civil(2026, 13, 1, 0), None);
+        assert_eq!(super::from_civil(2026, 1, 1, 1_440), None);
     }
 
     #[test]
