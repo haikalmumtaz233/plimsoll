@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Adaptive refresh, now the default: official usage refreshes every 2 minutes after you open the popup, every 5 minutes while Claude Code is active, and up to every 30 minutes when idle. Opening the popup fetches a fresh reading when the last one is older than 2 minutes.
+- The status badge shows how long ago the official reading arrived.
+- A pace marker on each limit meter shows how much of the window has elapsed.
+
+### Changed
+
+- A failed refresh keeps the green official badge, with a small sync icon, while the last official reading is still shown. The badge turns yellow only when no official reading is left.
+- Official readings stay on screen for 35 minutes instead of 15.
+- Turning accurate mode off and on again waits at least a minute before the next request instead of asking straight away.
+
 ## [0.6.0-rc.1] - 2026-09-28
 
 ### Changed
