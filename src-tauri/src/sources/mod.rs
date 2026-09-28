@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod jsonl;
 pub mod oauth;
 pub mod rfc3339;
