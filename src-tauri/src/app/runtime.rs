@@ -15,6 +15,7 @@ use super::engine::{Engine, Report};
 use super::startup::Startup;
 use super::view::{AlertView, UsageView};
 use super::{clock, locale};
+use crate::diagnostics;
 use crate::domain::alerts::Alert;
 use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, Utilization};
@@ -64,7 +65,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let engine = Engine::new(open_database(app)?)?;
     let accurate_mode = engine.accurate_mode()?;
     if let Err(error) = engine.prune(clock::now()) {
-        eprintln!("failed to prune old usage: {error}");
+        diagnostics::error("store", &format!("failed to prune old usage: {error}"));
     }
     let (refresh, changes) = mpsc::channel();
     app.manage(Shared {
@@ -76,7 +77,12 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         refresh,
         menu_language: Mutex::new(None),
         startup: Startup::current(&app.package_info().name)
-            .inspect_err(|error| eprintln!("start with windows is unavailable: {error}"))
+            .inspect_err(|error| {
+                diagnostics::warn(
+                    "startup",
+                    &format!("start with windows is unavailable: {error}"),
+                );
+            })
             .ok(),
     });
     let root = jsonl::projects_root();
@@ -152,7 +158,10 @@ pub fn set_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<Us
         startup.disable()
     };
     if let Err(error) = result {
-        eprintln!("failed to change start with windows: {error}");
+        diagnostics::error(
+            "startup",
+            &format!("failed to change start with windows: {error}"),
+        );
         return None;
     }
     publish(app)
@@ -169,7 +178,10 @@ fn open_database<R: Runtime>(app: &AppHandle<R>) -> Result<Database, DatabaseErr
         return Database::open_in_memory();
     };
     Database::open(&path).or_else(|error| {
-        eprintln!("failed to open usage database, keeping usage in memory: {error}");
+        diagnostics::error(
+            "store",
+            &format!("failed to open usage database, keeping usage in memory: {error}"),
+        );
         Database::open_in_memory()
     })
 }
@@ -194,7 +206,10 @@ fn watch_projects<R: Runtime>(app: &AppHandle<R>, root: &Path) {
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner) = Some(watcher);
         }
-        Err(error) => eprintln!("failed to watch claude code usage: {error}"),
+        Err(error) => diagnostics::error(
+            "jsonl",
+            &format!("failed to watch claude code usage: {error}"),
+        ),
     }
 }
 
@@ -233,7 +248,10 @@ fn ingest<R: Runtime>(app: &AppHandle<R>, source: &mut JsonlSource) {
                 note_coding(app, latest);
             }
         }
-        Err(error) => eprintln!("failed to read claude code usage: {error}"),
+        Err(error) => diagnostics::warn(
+            "jsonl",
+            &format!("failed to read claude code usage: {error}"),
+        ),
     }
 }
 
@@ -365,6 +383,8 @@ fn update_sync<R: Runtime>(
 fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
     let now = clock::now();
     update_sync(app, |state| state.last_attempt = Some(now));
+    let previous = with_engine(app, |engine| Ok(engine.status()));
+    log_oauth(previous, result);
     let outcome = with_engine(app, |engine| {
         engine.record_oauth(result, now)?;
         Ok((engine.take_alerts(now)?, engine.preferences()?.language))
@@ -378,13 +398,27 @@ fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
     }
 }
 
+fn log_oauth(previous: Option<OAuthStatus>, result: &PollResult) {
+    match result {
+        Ok(snapshots) if previous != Some(OAuthStatus::Active) => diagnostics::info(
+            "oauth",
+            &format!("usage refreshed with {} limits", snapshots.len()),
+        ),
+        Ok(_) => {}
+        Err(error) => diagnostics::warn(
+            "oauth",
+            &format!("{:?}: {error}", OAuthStatus::from_error(error)),
+        ),
+    }
+}
+
 fn announce<R: Runtime>(app: &AppHandle<R>, alert: &Alert, text: Text, now: Timestamp) {
     let message = toast::message(alert, text, now);
     if let Err(error) = toast::show(app, &message) {
-        eprintln!("failed to show a notification: {error}");
+        diagnostics::error("toast", &format!("failed to show a notification: {error}"));
     }
     if let Err(error) = app.emit(ALERT_EVENT, AlertView::new(alert, message)) {
-        eprintln!("failed to publish an alert: {error}");
+        diagnostics::error("app", &format!("failed to publish an alert: {error}"));
     }
 }
 
@@ -394,7 +428,7 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     let language = locale::resolve(report.preferences.language);
     let view = UsageView::from_report(&report, language, autostart_enabled(app), now);
     if let Err(error) = app.emit(USAGE_EVENT, &view) {
-        eprintln!("failed to publish usage: {error}");
+        diagnostics::error("app", &format!("failed to publish usage: {error}"));
     }
     apply_menu_language(app, language);
     let reading = TrayReading::from_summary(&report.summary);
@@ -405,7 +439,7 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
         Text::new(language),
         now,
     ) {
-        eprintln!("failed to update the tray icon: {error}");
+        diagnostics::error("tray", &format!("failed to update the tray icon: {error}"));
     }
     Some(view)
 }
@@ -423,7 +457,12 @@ fn apply_menu_language<R: Runtime>(app: &AppHandle<R>, language: Language) {
     }
     match tray::set_language(app, language) {
         Ok(()) => *applied = Some(language),
-        Err(error) => eprintln!("failed to translate the tray menu: {error}"),
+        Err(error) => {
+            diagnostics::error(
+                "tray",
+                &format!("failed to translate the tray menu: {error}"),
+            );
+        }
     }
 }
 
@@ -441,7 +480,7 @@ where
     match action(&mut engine) {
         Ok(value) => Some(value),
         Err(error) => {
-            eprintln!("usage database error: {error}");
+            diagnostics::error("store", &format!("usage database error: {error}"));
             None
         }
     }

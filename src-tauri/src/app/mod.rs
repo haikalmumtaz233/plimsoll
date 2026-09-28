@@ -16,7 +16,10 @@ pub fn run() -> Result<(), AppError> {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Err(error) = tray::open_popup(app) {
-                eprintln!("failed to open the running instance: {error}");
+                diagnostics::error(
+                    "app",
+                    &format!("failed to open the running instance: {error}"),
+                );
             }
         }))
         .plugin(tauri_plugin_notification::init())
