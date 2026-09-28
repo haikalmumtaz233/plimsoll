@@ -118,6 +118,7 @@ export interface UsageView {
   autostart: boolean;
   refresh: RefreshView;
   plan: string | null;
+  login: "hidden" | "ready" | "running";
   generatedAt: number;
   officialUpdatedAt: number | null;
 }
@@ -128,6 +129,10 @@ export function loadUsage(): Promise<UsageView> {
 
 export function refreshNow(): Promise<UsageView> {
   return invoke<UsageView>("refresh_now");
+}
+
+export function openLogin(): Promise<UsageView> {
+  return invoke<UsageView>("open_login");
 }
 
 export function setAccurateMode(enabled: boolean): Promise<UsageView> {

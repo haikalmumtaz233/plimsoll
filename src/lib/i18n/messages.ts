@@ -53,6 +53,11 @@ export interface Messages {
     reasons: Record<FallbackStatus, string>;
   };
   refresh: Record<RefreshState, string>;
+  login: {
+    ready: string;
+    running: string;
+    failed: string;
+  };
   history: {
     title: string;
     rangeLegend: string;
@@ -167,6 +172,11 @@ export const en: Messages = {
     running: "Refreshing…",
     cooling: "Refreshed moments ago, try again in a minute",
     blocked: "Waiting for the retry pause, refresh is not available yet",
+  },
+  login: {
+    ready: "Log in to Claude Code",
+    running: "Finish the login in the Claude Code window",
+    failed: "Could not open Claude Code. Check that it is installed.",
   },
   history: {
     title: "Token history",
@@ -284,6 +294,11 @@ export const id: Messages = {
     running: "Sedang refresh…",
     cooling: "Baru saja diperbarui, coba lagi dalam semenit",
     blocked: "Menunggu jeda coba ulang, refresh belum bisa",
+  },
+  login: {
+    ready: "Login Claude Code",
+    running: "Selesaikan login di jendela Claude Code",
+    failed: "Gagal membuka Claude Code. Pastikan sudah terpasang.",
   },
   history: {
     title: "Riwayat token",
