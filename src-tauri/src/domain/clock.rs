@@ -60,6 +60,11 @@ impl Span {
     }
 
     #[must_use]
+    pub fn from_duration(duration: Duration) -> Self {
+        Self(i64::try_from(duration.as_millis()).unwrap_or(i64::MAX))
+    }
+
+    #[must_use]
     pub fn to_duration(self) -> Duration {
         Duration::from_millis(u64::try_from(self.0).unwrap_or(0))
     }
@@ -70,6 +75,14 @@ impl Add<Span> for Timestamp {
 
     fn add(self, span: Span) -> Self {
         Self(self.0.saturating_add(span.0))
+    }
+}
+
+impl Add for Span {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self(self.0.saturating_add(other.0))
     }
 }
 
@@ -92,6 +105,27 @@ impl Sub for Timestamp {
 #[cfg(test)]
 mod tests {
     use super::{Span, Timestamp};
+    use std::time::Duration;
+
+    #[test]
+    fn spans_add_and_convert_from_durations_saturating() {
+        assert_eq!(
+            Span::minutes(2) + Span::seconds(30),
+            Span::from_millis(150_000)
+        );
+        assert_eq!(
+            Span::from_millis(i64::MAX) + Span::minutes(1),
+            Span::from_millis(i64::MAX)
+        );
+        assert_eq!(
+            Span::from_duration(Duration::from_secs(90)),
+            Span::seconds(90)
+        );
+        assert_eq!(
+            Span::from_duration(Duration::MAX),
+            Span::from_millis(i64::MAX)
+        );
+    }
 
     #[test]
     fn minutes_and_durations_convert() {

@@ -12,6 +12,7 @@ pub const LONG_IDLE_DELAY: Span = Span::minutes(30);
 pub const CODING_DELAY: Span = Span::minutes(5);
 
 pub const MIN_SPACING: Span = Span::minutes(1);
+pub const STALE_GRACE: Span = Span::minutes(5);
 pub const RUNNING_TIMEOUT: Span = Span::seconds(30);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +27,11 @@ pub enum ManualRefresh {
 pub struct Attempts {
     pub last: Option<Timestamp>,
     pub requested: Option<Timestamp>,
+}
+
+#[must_use]
+pub fn is_outdated(healthy: bool, official_age: Span, expected_delay: Span) -> bool {
+    !healthy || official_age > expected_delay + STALE_GRACE
 }
 
 #[must_use]
@@ -87,7 +93,8 @@ fn popup_delay(since: Span) -> Span {
 mod tests {
     use super::{
         Activity, Attempts, CODING_DELAY, IDLE_DELAY, LONG_IDLE_DELAY, MIN_SPACING, ManualRefresh,
-        RECENT_DELAY, RUNNING_TIMEOUT, WARM_DELAY, adaptive_delay, manual_refresh,
+        RECENT_DELAY, RUNNING_TIMEOUT, STALE_GRACE, WARM_DELAY, adaptive_delay, is_outdated,
+        manual_refresh,
     };
     use crate::domain::clock::{Span, Timestamp};
 
@@ -181,6 +188,19 @@ mod tests {
         ));
         let abandoned = attempts(Some(Span::minutes(3)), Some(RUNNING_TIMEOUT));
         assert_eq!(manual_refresh(true, abandoned, NOW), ManualRefresh::Ready);
+    }
+
+    #[test]
+    fn official_readings_are_outdated_after_a_failure_or_a_missed_refresh() {
+        assert!(!is_outdated(true, Span::minutes(3), RECENT_DELAY));
+        assert!(!is_outdated(true, RECENT_DELAY + STALE_GRACE, RECENT_DELAY));
+        assert!(is_outdated(
+            true,
+            RECENT_DELAY + STALE_GRACE + Span::seconds(1),
+            RECENT_DELAY
+        ));
+        assert!(!is_outdated(true, Span::minutes(30), LONG_IDLE_DELAY));
+        assert!(is_outdated(false, Span::ZERO, LONG_IDLE_DELAY));
     }
 
     #[test]
