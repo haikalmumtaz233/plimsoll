@@ -53,6 +53,13 @@ export interface Messages {
     reasons: Record<FallbackStatus, string>;
   };
   refresh: Record<RefreshState, string>;
+  pace: {
+    marker: (elapsed: string) => string;
+    ahead: (points: string) => string;
+    behind: (points: string) => string;
+    even: string;
+  };
+  usagePage: string;
   login: {
     ready: string;
     running: string;
@@ -176,6 +183,13 @@ export const en: Messages = {
     cooling: "Refreshed moments ago, try again in a minute",
     blocked: "Waiting for the retry pause, refresh is not available yet",
   },
+  pace: {
+    marker: (elapsed) => `The marker shows an even pace: ${elapsed} of this window has passed.`,
+    ahead: (points) => `Usage is ${points} points ahead.`,
+    behind: (points) => `Usage is ${points} points behind.`,
+    even: "Usage is on pace.",
+  },
+  usagePage: "Open usage on claude.ai",
   login: {
     ready: "Log in to Claude Code",
     running: "Finish the login in the Claude Code window",
@@ -302,6 +316,13 @@ export const id: Messages = {
     cooling: "Baru saja diperbarui, coba lagi dalam semenit",
     blocked: "Menunggu jeda coba ulang, refresh belum bisa",
   },
+  pace: {
+    marker: (elapsed) => `Penanda menunjukkan pace merata: ${elapsed} jendela ini sudah berlalu.`,
+    ahead: (points) => `Pemakaian ${points} poin di depan pace.`,
+    behind: (points) => `Pemakaian ${points} poin di belakang pace.`,
+    even: "Pemakaian sesuai pace.",
+  },
+  usagePage: "Buka usage di claude.ai",
   login: {
     ready: "Login Claude Code",
     running: "Selesaikan login di jendela Claude Code",

@@ -2,7 +2,7 @@
   import type { LimitView, ThresholdsView } from "../api/usage";
   import type { Messages } from "../i18n/messages";
   import { formatPercent, limitTitle, resetText } from "../usage/format";
-  import { paceFraction } from "../usage/pace";
+  import { paceFraction, paceText } from "../usage/pace";
 
   interface Props {
     messages: Messages;
@@ -16,6 +16,8 @@
   const titleId = $derived(`limit-${limit.kind}`);
   const reset = $derived(resetText(limit.resetsAt, now, messages));
   const pace = $derived(paceFraction(limit.kind, limit.resetsAt, now));
+  const paceId = $derived(`pace-${limit.kind}`);
+  const paceHint = $derived(pace === null ? null : paceText(limit.percent, pace, messages));
 </script>
 
 <section class="card" aria-labelledby={titleId}>
@@ -26,10 +28,11 @@
     {/if}
   </div>
   <p class="value">{formatPercent(limit.percent)}</p>
-  <div class="track">
+  <div class="track" title={paceHint ?? undefined}>
     <meter
       class="meter"
       aria-labelledby={titleId}
+      aria-describedby={paceHint === null ? undefined : paceId}
       min="0"
       max="100"
       low={thresholds.elevated}
@@ -43,6 +46,9 @@
       <span class="pace" style:left={`${String(pace * 100)}%`} aria-hidden="true"></span>
     {/if}
   </div>
+  {#if paceHint !== null}
+    <p class="visually-hidden" id={paceId}>{paceHint}</p>
+  {/if}
 </section>
 
 <style>
@@ -76,6 +82,16 @@
 
   .track {
     position: relative;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .pace {
