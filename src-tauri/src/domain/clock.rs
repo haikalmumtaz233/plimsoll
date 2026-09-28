@@ -1,6 +1,7 @@
 use std::ops::{Add, Sub};
 use std::time::Duration;
 
+const MILLIS_PER_SECOND: i64 = 1_000;
 const MILLIS_PER_MINUTE: i64 = 60_000;
 const MILLIS_PER_HOUR: i64 = 3_600_000;
 const MILLIS_PER_DAY: i64 = 86_400_000;
@@ -31,6 +32,11 @@ impl Span {
     #[must_use]
     pub const fn from_millis(millis: i64) -> Self {
         Self(millis)
+    }
+
+    #[must_use]
+    pub const fn seconds(seconds: i64) -> Self {
+        Self(seconds.saturating_mul(MILLIS_PER_SECOND))
     }
 
     #[must_use]

@@ -11,6 +11,46 @@ pub const IDLE_DELAY: Span = Span::minutes(15);
 pub const LONG_IDLE_DELAY: Span = Span::minutes(30);
 pub const CODING_DELAY: Span = Span::minutes(5);
 
+pub const MIN_SPACING: Span = Span::minutes(1);
+pub const RUNNING_TIMEOUT: Span = Span::seconds(30);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ManualRefresh {
+    Ready,
+    Running,
+    CoolingDown { until: Timestamp },
+    Blocked,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Attempts {
+    pub last: Option<Timestamp>,
+    pub requested: Option<Timestamp>,
+}
+
+#[must_use]
+pub fn manual_refresh(healthy: bool, attempts: Attempts, now: Timestamp) -> ManualRefresh {
+    let answered = attempts
+        .last
+        .zip(attempts.requested)
+        .is_some_and(|(last, requested)| last >= requested);
+    let pending = attempts
+        .requested
+        .is_some_and(|requested| now - requested < RUNNING_TIMEOUT);
+    if pending && !answered {
+        return ManualRefresh::Running;
+    }
+    if !healthy {
+        return ManualRefresh::Blocked;
+    }
+    match attempts.last {
+        Some(last) if now - last < MIN_SPACING => ManualRefresh::CoolingDown {
+            until: last + MIN_SPACING,
+        },
+        _ => ManualRefresh::Ready,
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Activity {
     pub popup_opened_at: Option<Timestamp>,
@@ -46,8 +86,8 @@ fn popup_delay(since: Span) -> Span {
 #[cfg(test)]
 mod tests {
     use super::{
-        Activity, CODING_DELAY, IDLE_DELAY, LONG_IDLE_DELAY, RECENT_DELAY, WARM_DELAY,
-        adaptive_delay,
+        Activity, Attempts, CODING_DELAY, IDLE_DELAY, LONG_IDLE_DELAY, MIN_SPACING, ManualRefresh,
+        RECENT_DELAY, RUNNING_TIMEOUT, WARM_DELAY, adaptive_delay, manual_refresh,
     };
     use crate::domain::clock::{Span, Timestamp};
 
@@ -87,6 +127,60 @@ mod tests {
             coding_at: Some(NOW - Span::minutes(6)),
         };
         assert_eq!(adaptive_delay(stale, NOW), LONG_IDLE_DELAY);
+    }
+
+    fn attempts(last: Option<Span>, requested: Option<Span>) -> Attempts {
+        Attempts {
+            last: last.map(|ago| NOW - ago),
+            requested: requested.map(|ago| NOW - ago),
+        }
+    }
+
+    #[test]
+    fn a_healthy_source_can_refresh_once_the_spacing_has_passed() {
+        assert_eq!(
+            manual_refresh(true, Attempts::default(), NOW),
+            ManualRefresh::Ready
+        );
+        assert_eq!(
+            manual_refresh(true, attempts(Some(MIN_SPACING), None), NOW),
+            ManualRefresh::Ready
+        );
+        assert_eq!(
+            manual_refresh(true, attempts(Some(Span::seconds(20)), None), NOW),
+            ManualRefresh::CoolingDown {
+                until: NOW - Span::seconds(20) + MIN_SPACING
+            }
+        );
+    }
+
+    #[test]
+    fn failing_or_pending_sources_keep_their_backoff() {
+        assert_eq!(
+            manual_refresh(false, attempts(Some(Span::minutes(10)), None), NOW),
+            ManualRefresh::Blocked
+        );
+        assert_eq!(
+            manual_refresh(false, Attempts::default(), NOW),
+            ManualRefresh::Blocked
+        );
+    }
+
+    #[test]
+    fn a_request_runs_until_the_next_attempt_or_the_timeout() {
+        let requested = attempts(Some(Span::minutes(3)), Some(Span::seconds(2)));
+        assert_eq!(manual_refresh(true, requested, NOW), ManualRefresh::Running);
+        assert_eq!(
+            manual_refresh(false, requested, NOW),
+            ManualRefresh::Running
+        );
+        let answered = attempts(Some(Span::seconds(1)), Some(Span::seconds(2)));
+        assert!(matches!(
+            manual_refresh(true, answered, NOW),
+            ManualRefresh::CoolingDown { .. }
+        ));
+        let abandoned = attempts(Some(Span::minutes(3)), Some(RUNNING_TIMEOUT));
+        assert_eq!(manual_refresh(true, abandoned, NOW), ManualRefresh::Ready);
     }
 
     #[test]
