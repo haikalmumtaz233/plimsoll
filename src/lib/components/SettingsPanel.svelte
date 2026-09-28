@@ -95,10 +95,15 @@
   <h2 class="heading" id="settings-title" tabindex="-1" bind:this={heading}>
     {messages.settings.title}
   </h2>
+  <AccurateModeToggle
+    {messages}
+    enabled={accurateMode}
+    pollMinutes={preferences.pollMinutes}
+    onchange={onaccuratechange}
+  />
   <form class="form" onsubmit={handleSubmit} novalidate>
-    <fieldset class="levels" aria-describedby="levels-help">
+    <fieldset class="levels">
       <legend class="legend">{messages.settings.alertLevels}</legend>
-      <p id="levels-help" class="help">{messages.settings.alertHelp}</p>
       <label class="level">
         <span>{messages.settings.warningAt}</span>
         <span class="field">
@@ -121,15 +126,16 @@
         </span>
       </label>
     </fieldset>
-    <div class="interval">
-      <label class="legend" for="poll-interval">{messages.settings.refresh}</label>
-      <select id="poll-interval" aria-describedby="interval-help" bind:value={pollMinutes}>
-        {#each preferences.pollChoices as minutes (minutes)}
-          <option value={minutes}>{intervalLabel(minutes, messages)}</option>
-        {/each}
-      </select>
-      <p id="interval-help" class="help">{messages.settings.refreshHelp}</p>
-    </div>
+    {#if accurateMode}
+      <div class="interval">
+        <label class="legend" for="poll-interval">{messages.settings.refresh}</label>
+        <select id="poll-interval" bind:value={pollMinutes}>
+          {#each preferences.pollChoices as minutes (minutes)}
+            <option value={minutes}>{intervalLabel(minutes, messages)}</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
     <div class="interval">
       <label class="legend" for="language">{messages.settings.language}</label>
       <select id="language" bind:value={language}>
@@ -162,12 +168,6 @@
     <p class="error" role="alert">{startupError}</p>
   {/if}
   <ManualPercent {messages} {manual} {now} onsave={onmanualsave} />
-  <AccurateModeToggle
-    {messages}
-    enabled={accurateMode}
-    pollMinutes={preferences.pollMinutes}
-    onchange={onaccuratechange}
-  />
 </section>
 
 <style>
@@ -219,12 +219,6 @@
     padding: 0;
     font-size: 0.875rem;
     font-weight: 600;
-  }
-
-  .help {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--color-text-muted);
   }
 
   .level {
