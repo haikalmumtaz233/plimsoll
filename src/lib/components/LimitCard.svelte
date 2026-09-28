@@ -17,10 +17,13 @@
 </script>
 
 <section class="card" aria-labelledby={titleId}>
-  <h2 class="title" id={titleId}>{limitTitle(limit.kind, messages)}</h2>
-  <p class="value">
-    {formatPercent(limit.percent)} <span class="unit">{messages.limits.used}</span>
-  </p>
+  <div class="row">
+    <h2 class="title" id={titleId}>{limitTitle(limit.kind, messages)}</h2>
+    {#if reset !== null}
+      <p class="muted">{reset}</p>
+    {/if}
+  </div>
+  <p class="value">{formatPercent(limit.percent)}</p>
   <meter
     class="meter"
     aria-labelledby={titleId}
@@ -33,9 +36,6 @@
   >
     {formatPercent(limit.percent)}
   </meter>
-  {#if reset !== null}
-    <p class="muted">{reset}</p>
-  {/if}
 </section>
 
 <style>
@@ -59,10 +59,12 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .unit {
-    font-size: 0.875rem;
-    font-weight: 400;
-    color: var(--color-text-muted);
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 var(--space-2);
   }
 
   .meter {

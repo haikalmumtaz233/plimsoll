@@ -21,14 +21,16 @@
 </script>
 
 <section class="card" aria-labelledby={titleId}>
-  <h2 class="title" id={titleId}>{title}</h2>
+  <div class="row">
+    <h2 class="title" id={titleId}>{title}</h2>
+    {#if hasUsage && reset !== null}
+      <p class="muted">{reset}</p>
+    {/if}
+  </div>
   {#if hasUsage}
     <p class="value">{formatTokens(usage.tokens, messages)}</p>
     {#if estimate !== undefined}
       <p class="estimate">{estimateText(estimate, messages)}</p>
-    {/if}
-    {#if reset !== null}
-      <p class="muted">{reset}</p>
     {/if}
   {:else}
     <p class="muted">{emptyText}</p>
@@ -39,6 +41,14 @@
   .estimate {
     margin: 0;
     font-size: 0.875rem;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 var(--space-2);
   }
 
   .card {
