@@ -5,9 +5,10 @@ pub mod runtime;
 pub mod startup;
 pub mod view;
 
-use tauri::RunEvent;
+use tauri::{AppHandle, Manager, RunEvent, Runtime};
 
 use crate::commands;
+use crate::diagnostics;
 use crate::error::AppError;
 use crate::tray;
 
@@ -20,6 +21,7 @@ pub fn run() -> Result<(), AppError> {
         }))
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
+            start_diagnostics(app.handle());
             tray::install(app.handle())?;
             runtime::start(app.handle())?;
             Ok(())
@@ -42,4 +44,14 @@ pub fn run() -> Result<(), AppError> {
             }
         });
     Ok(())
+}
+
+fn start_diagnostics<R: Runtime>(app: &AppHandle<R>) {
+    if let Ok(directory) = app.path().app_local_data_dir() {
+        diagnostics::init(directory.join(diagnostics::DIRECTORY));
+    }
+    diagnostics::info(
+        "app",
+        &format!("plimsoll {} started", app.package_info().version),
+    );
 }
