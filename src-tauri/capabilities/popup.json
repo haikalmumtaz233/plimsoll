@@ -10,6 +10,7 @@
     "allow-usage-summary",
     "allow-refresh-now",
     "allow-open-login",
+    "allow-set-cli-fallback",
     "allow-set-accurate-mode",
     "allow-set-preferences",
     "allow-set-manual-percent",

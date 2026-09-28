@@ -33,6 +33,7 @@ pub fn run() -> Result<(), AppError> {
             commands::usage_summary,
             commands::refresh_now,
             commands::open_login,
+            commands::set_cli_fallback,
             commands::set_accurate_mode,
             commands::set_preferences,
             commands::set_manual_percent,

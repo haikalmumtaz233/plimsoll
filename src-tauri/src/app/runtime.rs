@@ -20,15 +20,16 @@ use super::{clock, locale};
 use crate::diagnostics;
 use crate::domain::alerts::Alert;
 use crate::domain::clock::{Span, Timestamp};
-use crate::domain::limit::{LimitKind, Utilization};
+use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
 use crate::domain::plan::Plan;
 use crate::domain::preferences::{Language, Preferences};
 use crate::domain::refresh::{
-    Activity, Attempts, MIN_SPACING, ManualRefresh, adaptive_delay, is_outdated, manual_refresh,
+    Activity, Attempts, FallbackState, MIN_SPACING, ManualRefresh, adaptive_delay,
+    cli_fallback_due, is_outdated, manual_refresh,
 };
 use crate::error::AppError;
 use crate::i18n::Text;
-use crate::sources::cli::login;
+use crate::sources::cli::{login, usage, usage_text};
 use crate::sources::jsonl::{roots, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
 use crate::sources::oauth::poll::{self, PollResult};
@@ -45,6 +46,7 @@ pub const USAGE_EVENT: &str = "usage://updated";
 pub const ALERT_EVENT: &str = "usage://alert";
 
 const DATABASE_FILE: &str = "plimsoll.sqlite";
+const CLI_FOLDER: &str = "cli";
 const TICK: Duration = Duration::from_secs(60);
 const DEBOUNCE: Duration = Duration::from_millis(300);
 const ROOT_REDISCOVERY: Duration = Duration::from_secs(10 * 60);
@@ -55,6 +57,8 @@ const CODING_FRESHNESS: Span = Span::minutes(5);
 struct SyncState {
     activity: Activity,
     attempts: Attempts,
+    failures: u32,
+    cli_last_run: Option<Timestamp>,
 }
 
 struct Shared {
@@ -64,6 +68,7 @@ struct Shared {
     sync: Mutex<SyncState>,
     plan: Mutex<Option<Plan>>,
     login_running: AtomicBool,
+    cli_running: AtomicBool,
     watchers: Mutex<Vec<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
@@ -90,6 +95,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         sync: Mutex::new(SyncState::default()),
         plan: Mutex::new(None),
         login_running: AtomicBool::new(false),
+        cli_running: AtomicBool::new(false),
         watchers: Mutex::new(Vec::new()),
         refresh,
         menu_language: Mutex::new(None),
@@ -234,6 +240,19 @@ pub fn set_preferences<R: Runtime>(
     if accurate_mode {
         start_poller(app);
     }
+    publish(app)
+}
+
+pub fn set_cli_fallback<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<UsageView> {
+    with_engine(app, |engine| engine.set_cli_fallback(enabled))?;
+    diagnostics::info(
+        "cli",
+        if enabled {
+            "usage fallback turned on"
+        } else {
+            "usage fallback turned off"
+        },
+    );
     publish(app)
 }
 
@@ -491,14 +510,26 @@ fn update_sync<R: Runtime>(
 
 fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
     let now = clock::now();
-    update_sync(app, |state| state.attempts.last = Some(now));
+    update_sync(app, |state| {
+        state.attempts.last = Some(now);
+        state.failures = if result.is_ok() {
+            0
+        } else {
+            state.failures.saturating_add(1)
+        };
+    });
     let previous = with_engine(app, |engine| Ok(engine.status()));
     log_oauth(previous, result);
     if result.is_ok() {
         remember_plan(app);
     }
+    with_engine(app, |engine| engine.record_oauth(result, now));
+    announce_new_readings(app, now);
+    start_cli_fallback_if_due(app, now);
+}
+
+fn announce_new_readings<R: Runtime>(app: &AppHandle<R>, now: Timestamp) {
     let outcome = with_engine(app, |engine| {
-        engine.record_oauth(result, now)?;
         Ok((engine.take_alerts(now)?, engine.preferences()?.language))
     });
     publish(app);
@@ -508,6 +539,85 @@ fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
             announce(app, alert, text, now);
         }
     }
+}
+
+fn start_cli_fallback_if_due<R: Runtime>(app: &AppHandle<R>, now: Timestamp) {
+    let Some(shared) = app.try_state::<Shared>() else {
+        return;
+    };
+    let Some((enabled, token_expired)) = with_engine(app, |engine| {
+        Ok((
+            engine.accurate_mode()? && engine.cli_fallback()?,
+            engine.status() == OAuthStatus::TokenExpired,
+        ))
+    }) else {
+        return;
+    };
+    let sync = sync_state(app);
+    let state = FallbackState {
+        enabled,
+        failures: sync.failures,
+        token_expired,
+        last_run: sync.cli_last_run,
+    };
+    if !cli_fallback_due(state, now) || shared.cli_running.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    update_sync(app, |state| state.cli_last_run = Some(now));
+    let app = app.clone();
+    thread::spawn(move || {
+        run_cli_fallback(&app);
+        if let Some(shared) = app.try_state::<Shared>() {
+            shared.cli_running.store(false, Ordering::SeqCst);
+        }
+    });
+}
+
+fn run_cli_fallback<R: Runtime>(app: &AppHandle<R>) {
+    let Some(directory) = cli_directory(app) else {
+        diagnostics::error("cli", "no folder is available for the usage fallback");
+        return;
+    };
+    let output = match usage::read_usage(&directory) {
+        Ok(output) => output,
+        Err(error) => {
+            diagnostics::warn("cli", &format!("usage fallback failed: {error}"));
+            return;
+        }
+    };
+    let now = clock::now();
+    let snapshots = match local_offset() {
+        Some(offset) => usage_text::parse(&output, now, offset),
+        None => usage_text::parse(&output, now, Span::ZERO)
+            .into_iter()
+            .map(|snapshot| LimitSnapshot {
+                resets_at: None,
+                ..snapshot
+            })
+            .collect(),
+    };
+    if snapshots.is_empty() {
+        diagnostics::warn("cli", "usage fallback output was not recognized");
+        return;
+    }
+    diagnostics::info(
+        "cli",
+        &format!("usage fallback read {} limits", snapshots.len()),
+    );
+    with_engine(app, |engine| engine.record_cli(&snapshots, now));
+    announce_new_readings(app, now);
+}
+
+fn cli_directory<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    let directory = app.path().app_local_data_dir().ok()?.join(CLI_FOLDER);
+    fs::create_dir_all(&directory).ok()?;
+    Some(directory)
+}
+
+fn local_offset() -> Option<Span> {
+    time::UtcOffset::current_local_offset()
+        .ok()
+        .map(|offset| Span::seconds(i64::from(offset.whole_seconds())))
 }
 
 fn remember_plan<R: Runtime>(app: &AppHandle<R>) {
