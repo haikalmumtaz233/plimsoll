@@ -1,6 +1,6 @@
 use super::clock::{Span, Timestamp};
 
-pub const STALE_AFTER: Span = Span::from_millis(15 * 60_000);
+pub const STALE_AFTER: Span = Span::minutes(35);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LimitKind {
