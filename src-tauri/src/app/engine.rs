@@ -42,6 +42,10 @@ impl Engine {
         Ok(Self { database, status })
     }
 
+    pub fn migrate_settings(&self) -> Result<bool, DatabaseError> {
+        self.database.migrate_legacy_poll_interval()
+    }
+
     pub fn accurate_mode(&self) -> Result<bool, DatabaseError> {
         self.database.oauth_opted_in()
     }

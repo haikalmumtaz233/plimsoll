@@ -63,6 +63,12 @@ struct Shared {
 
 pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let engine = Engine::new(open_database(app)?)?;
+    if engine.migrate_settings()? {
+        diagnostics::info(
+            "store",
+            "moved the legacy 1 minute poll interval to adaptive",
+        );
+    }
     let accurate_mode = engine.accurate_mode()?;
     if let Err(error) = engine.prune(clock::now()) {
         diagnostics::error("store", &format!("failed to prune old usage: {error}"));
