@@ -17,7 +17,6 @@ export interface Messages {
   };
   limits: {
     title: Record<LimitKind, string>;
-    used: string;
     resetsIn: (countdown: string) => string;
     resettingNow: string;
   };
@@ -119,7 +118,6 @@ export const en: Messages = {
   },
   limits: {
     title: { five_hour: "5-hour limit", seven_day: "Weekly limit" },
-    used: "used",
     resetsIn: (countdown) => `Resets in ${countdown}`,
     resettingNow: "Resetting now",
   },
@@ -234,7 +232,6 @@ export const id: Messages = {
   },
   limits: {
     title: { five_hour: "Limit 5 jam", seven_day: "Limit mingguan" },
-    used: "terpakai",
     resetsIn: (countdown) => `Reset dalam ${countdown}`,
     resettingNow: "Sedang reset",
   },
