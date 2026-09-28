@@ -16,15 +16,17 @@ use super::startup::Startup;
 use super::view::{AlertView, UsageView};
 use super::{clock, locale};
 use crate::domain::alerts::Alert;
-use crate::domain::clock::Timestamp;
+use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{Language, Preferences};
+use crate::domain::refresh::{Activity, adaptive_delay};
 use crate::error::AppError;
 use crate::i18n::Text;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
 use crate::sources::oauth::poll::{self, PollResult};
 use crate::sources::oauth::schedule::{Jitter, PollSchedule};
+use crate::sources::oauth::status::OAuthStatus;
 use crate::sources::oauth::transport::HttpsTransport;
 use crate::sources::oauth::{OAuthError, OAuthUsageSource};
 use crate::store::{Database, DatabaseError};
@@ -37,11 +39,21 @@ pub const ALERT_EVENT: &str = "usage://alert";
 const DATABASE_FILE: &str = "plimsoll.sqlite";
 const TICK: Duration = Duration::from_secs(60);
 const DEBOUNCE: Duration = Duration::from_millis(300);
+const MIN_SPACING: Span = Span::minutes(1);
+const POPUP_FRESHNESS: Span = Span::minutes(2);
+const CODING_FRESHNESS: Span = Span::minutes(5);
+
+#[derive(Debug, Clone, Copy, Default)]
+struct SyncState {
+    activity: Activity,
+    last_attempt: Option<Timestamp>,
+}
 
 struct Shared {
     engine: Mutex<Engine>,
     poller: Mutex<Option<JoinHandle<()>>>,
     wake: Arc<Notify>,
+    sync: Mutex<SyncState>,
     watcher: Mutex<Option<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
@@ -59,6 +71,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         engine: Mutex::new(engine),
         poller: Mutex::new(None),
         wake: Arc::new(Notify::new()),
+        sync: Mutex::new(SyncState::default()),
         watcher: Mutex::new(None),
         refresh,
         menu_language: Mutex::new(None),
@@ -75,6 +88,12 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         start_poller(app);
     }
     Ok(())
+}
+
+pub fn note_popup_opened<R: Runtime>(app: &AppHandle<R>) {
+    let now = clock::now();
+    update_sync(app, |state| state.activity.popup_opened_at = Some(now));
+    wake_if_stale(app, POPUP_FRESHNESS, now);
 }
 
 pub fn current_view<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
@@ -210,6 +229,9 @@ fn ingest<R: Runtime>(app: &AppHandle<R>, source: &mut JsonlSource) {
             if !events.is_empty() || after != before {
                 with_engine(app, |engine| engine.store_jsonl(&events, &after));
             }
+            if let Some(latest) = events.iter().map(|keyed| keyed.event.at).max() {
+                note_coding(app, latest);
+            }
         }
         Err(error) => eprintln!("failed to read claude code usage: {error}"),
     }
@@ -245,6 +267,7 @@ async fn poll_oauth<R: Runtime>(app: AppHandle<R>) {
     let Some(wake) = wake_handle(&app) else {
         return;
     };
+    tokio::time::sleep(restart_pause(&app)).await;
     let Some(path) = credentials::credentials_path() else {
         record(
             &app,
@@ -281,14 +304,67 @@ fn wake_handle<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<Notify>> {
 }
 
 fn cadence<R: Runtime>(app: &AppHandle<R>) -> Duration {
-    with_engine(app, |engine| engine.preferences())
+    let interval = with_engine(app, |engine| engine.preferences())
         .unwrap_or_default()
-        .poll_interval
-        .duration()
+        .poll_interval;
+    let activity = sync_state(app).activity;
+    interval
+        .fixed_duration()
+        .unwrap_or_else(|| adaptive_delay(activity, clock::now()).to_duration())
+}
+
+fn restart_pause<R: Runtime>(app: &AppHandle<R>) -> Duration {
+    let now = clock::now();
+    sync_state(app)
+        .last_attempt
+        .map_or(Duration::ZERO, |at| (at + MIN_SPACING - now).to_duration())
+}
+
+fn note_coding<R: Runtime>(app: &AppHandle<R>, latest: Timestamp) {
+    let now = clock::now();
+    if now - latest > CODING_FRESHNESS {
+        return;
+    }
+    update_sync(app, |state| state.activity.coding_at = Some(latest));
+    wake_if_stale(app, CODING_FRESHNESS, now);
+}
+
+fn wake_if_stale<R: Runtime>(app: &AppHandle<R>, freshness: Span, now: Timestamp) {
+    let due = with_engine(app, |engine| {
+        if !engine.accurate_mode()? || engine.status() != OAuthStatus::Active {
+            return Ok(false);
+        }
+        let last = engine.last_official_at()?;
+        Ok(last.is_none_or(|at| now - at > freshness))
+    });
+    let spaced = sync_state(app)
+        .last_attempt
+        .is_none_or(|at| now - at >= MIN_SPACING);
+    if due == Some(true)
+        && spaced
+        && let Some(wake) = wake_handle(app)
+    {
+        wake.notify_one();
+    }
+}
+
+fn sync_state<R: Runtime>(app: &AppHandle<R>) -> SyncState {
+    update_sync(app, |_| {}).unwrap_or_default()
+}
+
+fn update_sync<R: Runtime>(
+    app: &AppHandle<R>,
+    change: impl FnOnce(&mut SyncState),
+) -> Option<SyncState> {
+    let shared = app.try_state::<Shared>()?;
+    let mut state = shared.sync.lock().unwrap_or_else(PoisonError::into_inner);
+    change(&mut *state);
+    Some(*state)
 }
 
 fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
     let now = clock::now();
+    update_sync(app, |state| state.last_attempt = Some(now));
     let outcome = with_engine(app, |engine| {
         engine.record_oauth(result, now)?;
         Ok((engine.take_alerts(now)?, engine.preferences()?.language))

@@ -31,6 +31,11 @@ describe("intervalLabel", () => {
     expect(intervalLabel(1, en)).toBe("Every minute");
     expect(intervalLabel(5, en)).toBe("Every 5 minutes");
   });
+
+  it("names the adaptive cadence", () => {
+    expect(intervalLabel(0, en)).toBe("Adaptive (recommended)");
+    expect(intervalLabel(0, id)).toBe("Adaptif (disarankan)");
+  });
 });
 
 describe("indonesian settings text", () => {

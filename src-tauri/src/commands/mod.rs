@@ -78,6 +78,7 @@ impl Serialize for CommandError {
 #[tauri::command(async)]
 #[allow(clippy::needless_pass_by_value)]
 pub fn usage_summary<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, CommandError> {
+    runtime::note_popup_opened(&app);
     runtime::current_view(&app).ok_or(CommandError::Unavailable)
 }
 

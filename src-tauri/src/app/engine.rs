@@ -45,6 +45,20 @@ impl Engine {
         self.database.oauth_opted_in()
     }
 
+    #[must_use]
+    pub const fn status(&self) -> OAuthStatus {
+        self.status
+    }
+
+    pub fn last_official_at(&self) -> Result<Option<Timestamp>, DatabaseError> {
+        Ok(self
+            .database
+            .latest_snapshots()?
+            .into_iter()
+            .map(|stored| stored.at)
+            .max())
+    }
+
     pub fn set_accurate_mode(&mut self, enabled: bool) -> Result<(), DatabaseError> {
         self.database.set_oauth_opted_in(enabled)?;
         self.status = if enabled {

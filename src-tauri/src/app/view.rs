@@ -354,8 +354,8 @@ mod tests {
                 "status": "active",
                 "preferences": {
                     "thresholds": { "elevated": 50, "high": 80, "critical": 95 },
-                    "pollMinutes": 1,
-                    "pollChoices": [1, 2, 5, 10],
+                    "pollMinutes": 0,
+                    "pollChoices": [0, 1, 2, 5, 10],
                     "language": "system",
                     "resolvedLanguage": "id"
                 },
