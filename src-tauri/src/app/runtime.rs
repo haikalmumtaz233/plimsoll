@@ -358,7 +358,7 @@ fn update_sync<R: Runtime>(
 ) -> Option<SyncState> {
     let shared = app.try_state::<Shared>()?;
     let mut state = shared.sync.lock().unwrap_or_else(PoisonError::into_inner);
-    change(&mut *state);
+    change(&mut state);
     Some(*state)
 }
 
