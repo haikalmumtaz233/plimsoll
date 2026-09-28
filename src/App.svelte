@@ -190,6 +190,7 @@
       onmanualsave={changeManualPercent}
       autostart={view.autostart}
       onautostartchange={changeAutostart}
+      officialActive={view.limits.length > 0}
     />
     {#if toggleError !== ""}
       <p class="error" role="alert">{toggleError}</p>
