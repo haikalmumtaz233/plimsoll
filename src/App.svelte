@@ -20,7 +20,7 @@
     type UsageView,
   } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
-  import { alertText, estimateFor, statusMessage } from "./lib/usage/format";
+  import { alertText, estimateFor, statusMessage, statusTone } from "./lib/usage/format";
   import { type HistoryRange } from "./lib/usage/history";
   import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
 
@@ -195,8 +195,9 @@
       <p class="error" role="alert">{toggleError}</p>
     {/if}
   {:else}
-    <p class="status" role="status">
-      {statusMessage(view.accurateMode, view.status, view.limits.length > 0, messages)}
+    <p class="status {statusTone(view.accurateMode, view.status)}" role="status">
+      <span class="dot" aria-hidden="true"></span>
+      {statusMessage(view.accurateMode, view.status, messages)}
     </p>
     {#if view.limits.length > 0}
       {#each view.limits as limit (limit.kind)}
@@ -277,6 +278,42 @@
     margin: 0;
     font-size: 0.875rem;
     color: var(--color-text-muted);
+  }
+
+  .status.official,
+  .status.local,
+  .status.attention {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: fit-content;
+    padding: 0.125rem var(--space-2);
+    font-size: 0.8125rem;
+    border: 0.0625rem solid var(--color-border);
+    border-radius: var(--radius-pill);
+  }
+
+  .dot {
+    flex-shrink: 0;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+  }
+
+  .official .dot {
+    background: var(--color-ok);
+  }
+
+  .attention .dot {
+    background: var(--color-warn);
+  }
+
+  @media (forced-colors: active) {
+    .dot {
+      forced-color-adjust: none;
+      background: CanvasText;
+    }
   }
 
   .error {

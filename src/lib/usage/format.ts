@@ -44,10 +44,18 @@ export function limitTitle(kind: LimitKind, messages: Messages): string {
   return messages.limits.title[kind];
 }
 
+export type StatusTone = "official" | "local" | "attention";
+
+export function statusTone(accurateMode: boolean, status: OAuthStatus): StatusTone {
+  if (!accurateMode || status === "disabled") {
+    return "local";
+  }
+  return status === "active" ? "official" : "attention";
+}
+
 export function statusMessage(
   accurateMode: boolean,
   status: OAuthStatus,
-  showingLimits: boolean,
   messages: Messages,
 ): string {
   if (!accurateMode || status === "disabled") {
@@ -56,8 +64,7 @@ export function statusMessage(
   if (status === "active") {
     return messages.status.active;
   }
-  const fallback = showingLimits ? messages.status.showingLast : messages.status.showingEstimates;
-  return `${messages.status.reasons[status]} ${fallback}`;
+  return messages.status.reasons[status];
 }
 
 export function alertText(alert: AlertView): string {

@@ -48,8 +48,6 @@ export interface Messages {
   status: {
     estimate: string;
     active: string;
-    showingLast: string;
-    showingEstimates: string;
     reasons: Record<FallbackStatus, string>;
   };
   history: {
@@ -152,18 +150,15 @@ export const en: Messages = {
     noUsageWeek: "No usage this week yet.",
   },
   status: {
-    estimate:
-      "Estimated from local Claude Code logs, without chat, desktop or mobile usage. Turn on accurate mode in Settings for official percentages.",
-    active: "Official usage from your Claude account.",
-    showingLast: "Showing the last official reading.",
-    showingEstimates: "Showing local estimates.",
+    estimate: "Local estimate",
+    active: "Official",
     reasons: {
-      pending: "Connecting to your Claude account.",
-      signed_out: "Claude Code is not signed in on this PC.",
-      token_expired: "The Claude Code sign-in has expired. Open Claude Code to refresh it.",
-      unauthorized: "Your Claude account refused the request.",
-      unavailable: "Official usage is unavailable right now.",
-      retrying: "Could not reach Claude. Retrying soon.",
+      pending: "Connecting…",
+      signed_out: "Claude Code signed out",
+      token_expired: "Sign-in expired, open Claude Code",
+      unauthorized: "Access refused",
+      unavailable: "Official data unavailable",
+      retrying: "Reconnecting…",
     },
   },
   history: {
@@ -272,18 +267,15 @@ export const id: Messages = {
     noUsageWeek: "Belum ada pemakaian minggu ini.",
   },
   status: {
-    estimate:
-      "Estimasi dari log Claude Code lokal, tanpa pemakaian chat, desktop, atau mobile. Aktifkan mode akurat di Pengaturan untuk persentase resmi.",
-    active: "Pemakaian resmi dari akun Claude Anda.",
-    showingLast: "Menampilkan data resmi terakhir.",
-    showingEstimates: "Menampilkan estimasi lokal.",
+    estimate: "Estimasi lokal",
+    active: "Resmi",
     reasons: {
-      pending: "Menghubungkan ke akun Claude Anda.",
-      signed_out: "Claude Code belum login di PC ini.",
-      token_expired: "Login Claude Code sudah kedaluwarsa. Buka Claude Code untuk memperbaruinya.",
-      unauthorized: "Akun Claude Anda menolak permintaan.",
-      unavailable: "Pemakaian resmi sedang tidak tersedia.",
-      retrying: "Tidak bisa menghubungi Claude. Mencoba lagi sebentar lagi.",
+      pending: "Menghubungkan…",
+      signed_out: "Claude Code belum login",
+      token_expired: "Login kedaluwarsa, buka Claude Code",
+      unauthorized: "Akses ditolak",
+      unavailable: "Data resmi tidak tersedia",
+      retrying: "Menghubungkan ulang…",
     },
   },
   history: {

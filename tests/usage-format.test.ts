@@ -10,6 +10,7 @@ import {
   limitTitle,
   resetText,
   statusMessage,
+  statusTone,
 } from "../src/lib/usage/format";
 
 const MINUTE = 60_000;
@@ -68,23 +69,28 @@ describe("limitTitle", () => {
 });
 
 describe("statusMessage", () => {
-  it("explains estimates when accurate mode is off", () => {
-    expect(statusMessage(false, "disabled", false, en)).toContain("Estimated from local");
+  it("labels local estimates when accurate mode is off", () => {
+    expect(statusMessage(false, "disabled", en)).toBe("Local estimate");
+    expect(statusMessage(false, "active", en)).toBe("Local estimate");
   });
 
-  it("confirms official data when active", () => {
-    expect(statusMessage(true, "active", true, en)).toBe(
-      "Official usage from your Claude account.",
-    );
+  it("labels official data when active", () => {
+    expect(statusMessage(true, "active", en)).toBe("Official");
   });
 
-  it("names the fallback reason and what is shown instead", () => {
-    expect(statusMessage(true, "token_expired", false, en)).toBe(
-      "The Claude Code sign-in has expired. Open Claude Code to refresh it. Showing local estimates.",
-    );
-    expect(statusMessage(true, "retrying", true, en)).toBe(
-      "Could not reach Claude. Retrying soon. Showing the last official reading.",
-    );
+  it("names the fallback reason briefly", () => {
+    expect(statusMessage(true, "token_expired", en)).toBe("Sign-in expired, open Claude Code");
+    expect(statusMessage(true, "retrying", en)).toBe("Reconnecting…");
+  });
+});
+
+describe("statusTone", () => {
+  it("separates official, local and attention states", () => {
+    expect(statusTone(true, "active")).toBe("official");
+    expect(statusTone(false, "active")).toBe("local");
+    expect(statusTone(true, "disabled")).toBe("local");
+    expect(statusTone(true, "retrying")).toBe("attention");
+    expect(statusTone(true, "signed_out")).toBe("attention");
   });
 });
 
@@ -107,9 +113,7 @@ describe("indonesian formatting", () => {
     expect(formatCountdown(2 * HOUR + 15 * MINUTE, id)).toBe("2 jam 15 menit");
     expect(resetText(10 * HOUR, 8 * HOUR, id)).toBe("Reset dalam 2 jam 0 menit");
     expect(limitTitle("seven_day", id)).toBe("Limit mingguan");
-    expect(statusMessage(true, "retrying", false, id)).toBe(
-      "Tidak bisa menghubungi Claude. Mencoba lagi sebentar lagi. Menampilkan estimasi lokal.",
-    );
+    expect(statusMessage(true, "retrying", id)).toBe("Menghubungkan ulang…");
   });
 });
 
