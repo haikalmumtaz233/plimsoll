@@ -99,6 +99,15 @@ pub fn open_login<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, CommandErr
 
 #[tauri::command(async)]
 #[allow(clippy::needless_pass_by_value)]
+pub fn set_cli_fallback<R: Runtime>(
+    app: AppHandle<R>,
+    enabled: bool,
+) -> Result<UsageView, CommandError> {
+    runtime::set_cli_fallback(&app, enabled).ok_or(CommandError::Unavailable)
+}
+
+#[tauri::command(async)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn set_accurate_mode<R: Runtime>(
     app: AppHandle<R>,
     enabled: bool,
