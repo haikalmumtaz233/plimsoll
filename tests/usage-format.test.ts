@@ -12,6 +12,7 @@ import {
   resetText,
   statusMessage,
   statusTone,
+  updatedText,
 } from "../src/lib/usage/format";
 
 const MINUTE = 60_000;
@@ -100,6 +101,15 @@ describe("statusTone", () => {
   it("marks local estimates", () => {
     expect(statusTone(false, "active", true)).toBe("local");
     expect(statusTone(true, "disabled", false)).toBe("local");
+  });
+});
+
+describe("updatedText", () => {
+  it("describes how long ago the official reading arrived", () => {
+    expect(updatedText(0, 3 * MINUTE, en)).toBe("3m ago");
+    expect(updatedText(0, 3 * MINUTE, id)).toBe("3 menit lalu");
+    expect(updatedText(0, 20_000, en)).toBe("under a minute ago");
+    expect(updatedText(null, 3 * MINUTE, en)).toBeNull();
   });
 });
 

@@ -128,6 +128,7 @@ impl AlertView {
 pub struct UsageView {
     pub accurate_mode: bool,
     pub status: OAuthStatus,
+    pub official_updated_at: Option<i64>,
     pub preferences: PreferencesView,
     pub limits: Vec<LimitView>,
     pub estimates: Vec<EstimateView>,
@@ -151,6 +152,7 @@ impl UsageView {
         Self {
             accurate_mode: report.accurate_mode,
             status: report.status,
+            official_updated_at: report.official_updated_at.map(Timestamp::unix_millis),
             preferences: preferences_view(report.preferences, language),
             limits: report.summary.limits.iter().map(limit_view).collect(),
             estimates: report.estimates.iter().map(estimate_view).collect(),
@@ -289,6 +291,7 @@ mod tests {
         Report {
             accurate_mode: true,
             status: OAuthStatus::Active,
+            official_updated_at: Some(NOW - Span::minutes(3)),
             preferences: Preferences::default(),
             manual: Vec::new(),
             estimates: vec![Estimate {
@@ -352,6 +355,7 @@ mod tests {
             json!({
                 "accurateMode": true,
                 "status": "active",
+                "officialUpdatedAt": (NOW - Span::minutes(3)).unix_millis(),
                 "preferences": {
                     "thresholds": { "elevated": 50, "high": 80, "critical": 95 },
                     "pollMinutes": 0,

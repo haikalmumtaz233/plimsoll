@@ -20,7 +20,14 @@
     type UsageView,
   } from "./lib/api/usage";
   import { formatVersion } from "./lib/api/version";
-  import { alertText, estimateFor, isSyncing, statusMessage, statusTone } from "./lib/usage/format";
+  import {
+    alertText,
+    estimateFor,
+    isSyncing,
+    statusMessage,
+    statusTone,
+    updatedText,
+  } from "./lib/usage/format";
   import { type HistoryRange } from "./lib/usage/history";
   import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
 
@@ -198,6 +205,9 @@
   {:else}
     {@const showingLimits = view.limits.length > 0}
     {@const syncing = isSyncing(view.accurateMode, view.status, showingLimits)}
+    {@const updated = showingLimits
+      ? updatedText(view.officialUpdatedAt, view.generatedAt, messages)
+      : null}
     <p
       class="status {statusTone(view.accurateMode, view.status, showingLimits)}"
       role="status"
@@ -205,6 +215,9 @@
     >
       <span class="dot" aria-hidden="true"></span>
       {statusMessage(view.accurateMode, view.status, showingLimits, messages)}
+      {#if updated !== null}
+        <span class="age">· {updated}</span>
+      {/if}
       {#if syncing}
         <svg class="sync" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <path d="M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5" />
@@ -313,6 +326,10 @@
     height: 0.5rem;
     border-radius: 50%;
     background: var(--color-text-muted);
+  }
+
+  .age {
+    font-variant-numeric: tabular-nums;
   }
 
   .sync {
