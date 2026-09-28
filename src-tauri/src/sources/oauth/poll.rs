@@ -48,11 +48,10 @@ async fn pause(delay: Duration, failed: bool, wake: &Notify) {
         return;
     }
     let started = Instant::now();
-    if tokio::time::timeout(delay, wake.notified()).await.is_ok() {
-        let spent = started.elapsed();
-        if spent < MIN_INTERVAL {
-            tokio::time::sleep(MIN_INTERVAL - spent).await;
-        }
+    if tokio::time::timeout(delay, wake.notified()).await.is_ok()
+        && let Some(rest) = MIN_INTERVAL.checked_sub(started.elapsed())
+    {
+        tokio::time::sleep(rest).await;
     }
 }
 
