@@ -1,5 +1,6 @@
 pub mod app;
 mod commands;
+pub mod diagnostics;
 pub mod domain;
 mod error;
 pub mod i18n;
