@@ -18,6 +18,33 @@ pub enum Tone {
 const WHITE: Rgb = Rgb([0xFF, 0xFF, 0xFF]);
 const INK: Rgb = Rgb([0x11, 0x11, 0x11]);
 
+const DIM_BASE: [u8; 3] = [0x2A, 0x2A, 0x2A];
+const DIM_KEEP_PERCENT: u16 = 40;
+
+impl Palette {
+    #[must_use]
+    pub const fn dimmed(self) -> Self {
+        Self {
+            background: toward_dim_base(self.background),
+            foreground: WHITE,
+        }
+    }
+}
+
+const fn toward_dim_base(Rgb(channels): Rgb) -> Rgb {
+    Rgb([
+        blend(channels[0], DIM_BASE[0]),
+        blend(channels[1], DIM_BASE[1]),
+        blend(channels[2], DIM_BASE[2]),
+    ])
+}
+
+#[allow(clippy::cast_possible_truncation)]
+const fn blend(channel: u8, base: u8) -> u8 {
+    let mixed = (channel as u16 * DIM_KEEP_PERCENT + base as u16 * (100 - DIM_KEEP_PERCENT)) / 100;
+    mixed as u8
+}
+
 impl Tone {
     #[must_use]
     pub const fn palette(self) -> Palette {
@@ -82,6 +109,18 @@ mod tests {
             let palette = tone.palette();
             let ratio = contrast(palette.foreground, palette.background);
             assert!(ratio >= 4.5, "{tone:?} has contrast {ratio:.2}");
+        }
+    }
+
+    #[test]
+    fn dimmed_tones_stay_readable_and_look_different() {
+        for tone in TONES {
+            let normal = tone.palette();
+            let dimmed = normal.dimmed();
+            assert_ne!(dimmed.background, normal.background, "{tone:?}");
+            assert!(luminance(dimmed.background) <= luminance(normal.background));
+            let ratio = contrast(dimmed.foreground, dimmed.background);
+            assert!(ratio >= 4.5, "dimmed {tone:?} has contrast {ratio:.2}");
         }
     }
 

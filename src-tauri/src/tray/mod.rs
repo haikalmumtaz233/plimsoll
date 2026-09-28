@@ -19,7 +19,7 @@ use crate::domain::severity::Thresholds;
 use crate::error::AppError;
 use crate::i18n::Text;
 use menu::MenuAction;
-use reading::TrayReading;
+use reading::{Freshness, TrayReading};
 
 const TRAY_ID: &str = "plimsoll";
 const DEFAULT_SCALE: f64 = 1.0;
@@ -39,7 +39,12 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     app.manage(popup::PopupLifetime::default());
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(icon_image(app, &idle, Thresholds::DEFAULT)?)
+        .icon(icon_image(
+            app,
+            &idle,
+            Thresholds::DEFAULT,
+            Freshness::Current,
+        )?)
         .tooltip(idle.tooltip(Text::new(language), clock::now()))
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -55,10 +60,11 @@ pub fn show_reading<R: Runtime>(
     thresholds: Thresholds,
     text: Text,
     now: Timestamp,
+    freshness: Freshness,
 ) -> Result<(), AppError> {
     let tray = app.tray_by_id(TRAY_ID).ok_or(AppError::MissingTray)?;
-    tray.set_icon(Some(icon_image(app, reading, thresholds)?))?;
-    tray.set_tooltip(Some(reading.tooltip(text, now)))?;
+    tray.set_icon(Some(icon_image(app, reading, thresholds, freshness)?))?;
+    tray.set_tooltip(Some(reading.tooltip_for(text, now, freshness)))?;
     Ok(())
 }
 
@@ -66,18 +72,19 @@ fn icon_image<R: Runtime>(
     app: &AppHandle<R>,
     reading: &TrayReading,
     thresholds: Thresholds,
+    freshness: Freshness,
 ) -> Result<Image<'static>, AppError> {
     let scale = app
         .primary_monitor()
         .ok()
         .flatten()
         .map_or(DEFAULT_SCALE, |monitor| monitor.scale_factor());
-    let bitmap = render::render(
-        &reading.label(),
-        reading.tone(thresholds).palette(),
-        render::icon_size(scale),
-    )
-    .ok_or(AppError::IconRender)?;
+    let palette = match freshness {
+        Freshness::Current => reading.tone(thresholds).palette(),
+        Freshness::Outdated => reading.tone(thresholds).palette().dimmed(),
+    };
+    let bitmap = render::render(&reading.label(), palette, render::icon_size(scale))
+        .ok_or(AppError::IconRender)?;
     Ok(Image::new_owned(bitmap.rgba, bitmap.size, bitmap.size))
 }
 

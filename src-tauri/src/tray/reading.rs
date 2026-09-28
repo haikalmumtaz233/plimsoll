@@ -9,6 +9,12 @@ const APP_NAME: &str = "Plimsoll";
 const IDLE_LABEL: &str = "-";
 const MAX_PERCENT_LABEL: f64 = 999.0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Freshness {
+    Current,
+    Outdated,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrayReading {
     Idle,
@@ -47,6 +53,15 @@ impl TrayReading {
                 Tone::Severity(Severity::of(limit.utilization, thresholds))
             }),
             Self::Idle | Self::Tokens(_) => Tone::Neutral,
+        }
+    }
+
+    #[must_use]
+    pub fn tooltip_for(&self, text: Text, now: Timestamp, freshness: Freshness) -> String {
+        let tooltip = self.tooltip(text, now);
+        match freshness {
+            Freshness::Current => tooltip,
+            Freshness::Outdated => format!("{tooltip}\n{}", text.outdated()),
         }
     }
 
@@ -102,7 +117,7 @@ fn compact_tokens(count: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{TrayReading, compact_tokens};
+    use super::{Freshness, TrayReading, compact_tokens};
     use crate::domain::breakdown::Breakdowns;
     use crate::domain::clock::{Span, Timestamp};
     use crate::domain::history::HourlyHistory;
@@ -249,6 +264,19 @@ mod tests {
         assert_eq!(
             reading.tooltip(EN, NOW),
             "Plimsoll\n5-hour: 42%, resets in 2h 15m\nWeekly: 14%, resets in 3d 4h"
+        );
+    }
+
+    #[test]
+    fn outdated_readings_say_so_in_the_tooltip() {
+        let reading = TrayReading::Limits(vec![limit(LimitKind::FiveHour, 42.0, None)]);
+        assert_eq!(
+            reading.tooltip_for(EN, NOW, Freshness::Outdated),
+            "Plimsoll\n5-hour: 42%\nOfficial reading is out of date"
+        );
+        assert_eq!(
+            reading.tooltip_for(EN, NOW, Freshness::Current),
+            reading.tooltip(EN, NOW)
         );
     }
 

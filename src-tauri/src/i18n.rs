@@ -90,6 +90,14 @@ impl Text {
     }
 
     #[must_use]
+    pub const fn outdated(self) -> &'static str {
+        match self.language {
+            Language::English => "Official reading is out of date",
+            Language::Indonesian => "Data resmi belum diperbarui",
+        }
+    }
+
+    #[must_use]
     pub fn past_level(self, severity: Severity) -> String {
         match self.language {
             Language::English => format!("Past your {} level.", self.level(severity)),

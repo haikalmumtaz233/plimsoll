@@ -21,7 +21,7 @@ use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{Language, Preferences};
 use crate::domain::refresh::{
-    Activity, Attempts, MIN_SPACING, ManualRefresh, adaptive_delay, manual_refresh,
+    Activity, Attempts, MIN_SPACING, ManualRefresh, adaptive_delay, is_outdated, manual_refresh,
 };
 use crate::error::AppError;
 use crate::i18n::Text;
@@ -34,7 +34,8 @@ use crate::sources::oauth::transport::HttpsTransport;
 use crate::sources::oauth::{OAuthError, OAuthUsageSource};
 use crate::store::{Database, DatabaseError};
 use crate::toast;
-use crate::tray::{self, reading::TrayReading};
+use crate::tray;
+use crate::tray::reading::{Freshness, TrayReading};
 
 pub const USAGE_EVENT: &str = "usage://updated";
 pub const ALERT_EVENT: &str = "usage://alert";
@@ -465,10 +466,27 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
         report.preferences.thresholds,
         Text::new(language),
         now,
+        freshness(app, &report, now),
     ) {
         diagnostics::error("tray", &format!("failed to update the tray icon: {error}"));
     }
     Some(view)
+}
+
+fn freshness<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> Freshness {
+    let Some(updated_at) = report.official_updated_at else {
+        return Freshness::Current;
+    };
+    let expected = Span::from_duration(cadence(app));
+    if is_outdated(
+        report.status == OAuthStatus::Active,
+        now - updated_at,
+        expected,
+    ) {
+        Freshness::Outdated
+    } else {
+        Freshness::Current
+    }
 }
 
 fn apply_menu_language<R: Runtime>(app: &AppHandle<R>, language: Language) {
