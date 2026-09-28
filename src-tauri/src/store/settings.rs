@@ -18,6 +18,9 @@ const NOTIFIED_SEPARATOR: char = '@';
 const NO_RESET: &str = "none";
 const MANUAL_PREFIX: &str = "manual.";
 const ENABLED: &str = "true";
+const ADAPTIVE_MIGRATION: &str = "migrations.adaptive_poll";
+const LEGACY_POLL_MINUTES: &str = "1";
+const DONE: &str = "done";
 const DISABLED: &str = "false";
 
 impl Database {
@@ -57,6 +60,18 @@ impl Database {
             &preferences.poll_interval.minutes().to_string(),
         )?;
         self.set_setting(LANGUAGE, preferences.language.code())
+    }
+
+    pub fn migrate_legacy_poll_interval(&self) -> Result<bool, DatabaseError> {
+        if self.setting(ADAPTIVE_MIGRATION)?.is_some() {
+            return Ok(false);
+        }
+        let legacy = self.setting(POLL_MINUTES)?.as_deref() == Some(LEGACY_POLL_MINUTES);
+        if legacy {
+            self.set_setting(POLL_MINUTES, &PollInterval::ADAPTIVE.minutes().to_string())?;
+        }
+        self.set_setting(ADAPTIVE_MIGRATION, DONE)?;
+        Ok(legacy)
     }
 
     pub fn notified_alerts(&self) -> Result<Vec<Notified>, DatabaseError> {
@@ -313,6 +328,53 @@ mod tests {
         let preferences = database.preferences().expect("read");
         assert_eq!(preferences.poll_interval, PollInterval::DEFAULT);
         assert_eq!(preferences.language, LanguageChoice::System);
+    }
+
+    #[test]
+    fn a_legacy_one_minute_interval_moves_to_adaptive_once() {
+        let database = Database::open_in_memory().expect("open");
+        database
+            .set_setting("oauth.poll_minutes", "1")
+            .expect("write");
+        assert!(database.migrate_legacy_poll_interval().expect("migrate"));
+        assert_eq!(
+            database.preferences().expect("read").poll_interval,
+            PollInterval::ADAPTIVE
+        );
+        database
+            .set_setting("oauth.poll_minutes", "1")
+            .expect("chosen again");
+        assert!(!database.migrate_legacy_poll_interval().expect("again"));
+        assert_eq!(
+            database.preferences().expect("read").poll_interval,
+            PollInterval::from_minutes(1).expect("valid interval")
+        );
+    }
+
+    #[test]
+    fn other_intervals_are_kept_and_the_migration_is_marked_done() {
+        for value in [None, Some("0"), Some("2"), Some("10")] {
+            let database = Database::open_in_memory().expect("open");
+            if let Some(value) = value {
+                database
+                    .set_setting("oauth.poll_minutes", value)
+                    .expect("write");
+            }
+            assert!(!database.migrate_legacy_poll_interval().expect("migrate"));
+            assert_eq!(
+                database
+                    .setting("oauth.poll_minutes")
+                    .expect("read")
+                    .as_deref(),
+                value
+            );
+            assert!(
+                database
+                    .setting("migrations.adaptive_poll")
+                    .expect("marker")
+                    .is_some()
+            );
+        }
     }
 
     #[test]
