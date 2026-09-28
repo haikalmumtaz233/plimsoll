@@ -12,6 +12,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::app::{clock, locale};
+use crate::diagnostics;
 use crate::domain::clock::Timestamp;
 use crate::domain::preferences::{Language, LanguageChoice};
 use crate::domain::severity::Thresholds;
@@ -128,6 +129,6 @@ fn handle_tray_event<R: Runtime>(app: &AppHandle<R>, event: &TrayIconEvent) {
 
 fn report(result: Result<(), AppError>) {
     if let Err(error) = result {
-        eprintln!("tray action failed: {error}");
+        diagnostics::error("tray", &format!("tray action failed: {error}"));
     }
 }

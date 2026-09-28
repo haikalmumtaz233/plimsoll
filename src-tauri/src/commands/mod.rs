@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::app::runtime;
 use crate::app::view::UsageView;
+use crate::diagnostics;
 use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
 use crate::domain::severity::Thresholds;
@@ -124,7 +125,7 @@ pub fn set_autostart<R: Runtime>(
 #[allow(clippy::needless_pass_by_value)]
 pub fn hide_popup<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
     tray::hide_popup(&app).map_err(|error| {
-        eprintln!("failed to hide the popup: {error}");
+        diagnostics::error("popup", &format!("failed to hide the popup: {error}"));
         CommandError::Popup
     })
 }

@@ -9,6 +9,7 @@ use tauri::{
 };
 
 use super::placement::{self, Area, Point, Size};
+use crate::diagnostics;
 use crate::error::AppError;
 
 const POPUP_LABEL: &str = "popup";
@@ -44,7 +45,7 @@ fn create<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, AppError> 
             if matches!(payload.event(), PageLoadEvent::Finished)
                 && let Err(error) = reveal(&popup)
             {
-                eprintln!("failed to show the popup: {error}");
+                diagnostics::error("popup", &format!("failed to show the popup: {error}"));
             }
         })
         .build()?)
@@ -114,7 +115,7 @@ fn schedule_release<R: Runtime>(app: &AppHandle<R>) {
         thread::sleep(RELEASE_DELAY);
         let main = app.clone();
         if let Err(error) = app.run_on_main_thread(move || release(&main, generation)) {
-            eprintln!("failed to release the popup: {error}");
+            diagnostics::error("popup", &format!("failed to release the popup: {error}"));
         }
     });
 }
@@ -129,7 +130,7 @@ fn release<R: Runtime>(app: &AppHandle<R>, generation: u64) {
     if let Some(popup) = app.get_webview_window(POPUP_LABEL)
         && let Err(error) = popup.destroy()
     {
-        eprintln!("failed to release the popup: {error}");
+        diagnostics::error("popup", &format!("failed to release the popup: {error}"));
     }
 }
 

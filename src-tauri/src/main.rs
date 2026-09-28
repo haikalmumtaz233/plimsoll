@@ -6,7 +6,7 @@ fn main() -> ExitCode {
     match plimsoll_lib::run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("plimsoll failed to start: {error}");
+            plimsoll_lib::diagnostics::error("app", &format!("plimsoll failed to start: {error}"));
             ExitCode::FAILURE
         }
     }
