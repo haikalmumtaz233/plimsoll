@@ -21,13 +21,13 @@ pub enum OAuthError {
     Credentials(#[from] CredentialsError),
     #[error(transparent)]
     Transport(#[from] TransportError),
-    #[error("oauth usage request was not authorized")]
+    #[error("oauth usage request was not authorized (http 401/403)")]
     Unauthorized,
-    #[error("oauth usage endpoint was not found")]
+    #[error("oauth usage endpoint was not found (http 404)")]
     EndpointGone,
-    #[error("oauth usage endpoint is rate limiting requests")]
+    #[error("oauth usage endpoint is rate limiting requests (http 429{})", retry_hint(*.retry_after))]
     RateLimited { retry_after: Option<Duration> },
-    #[error("oauth usage endpoint returned status {0}")]
+    #[error("oauth usage endpoint returned http {0}")]
     Status(u16),
     #[error("oauth usage response schema is not recognized")]
     SchemaChanged,
@@ -41,6 +41,12 @@ impl OAuthError {
             _ => None,
         }
     }
+}
+
+fn retry_hint(retry_after: Option<Duration>) -> String {
+    retry_after.map_or_else(String::new, |wait| {
+        format!(", retry after {} s", wait.as_secs())
+    })
 }
 
 pub fn interpret(reply: &Reply) -> Result<Vec<LimitSnapshot>, OAuthError> {
@@ -227,5 +233,24 @@ mod tests {
         .expect_err("rate limited");
         assert_eq!(error.retry_after(), Some(Duration::from_secs(300)));
         assert_eq!(OAuthError::Unauthorized.retry_after(), None);
+    }
+
+    #[test]
+    fn error_messages_carry_the_http_status_for_the_log() {
+        assert_eq!(
+            OAuthError::RateLimited {
+                retry_after: Some(Duration::from_secs(300))
+            }
+            .to_string(),
+            "oauth usage endpoint is rate limiting requests (http 429, retry after 300 s)"
+        );
+        assert_eq!(
+            OAuthError::RateLimited { retry_after: None }.to_string(),
+            "oauth usage endpoint is rate limiting requests (http 429)"
+        );
+        assert_eq!(
+            OAuthError::Status(503).to_string(),
+            "oauth usage endpoint returned http 503"
+        );
     }
 }
