@@ -8,6 +8,7 @@ use crate::domain::clock::Timestamp;
 use crate::domain::history::{BUCKET, HourlyHistory};
 use crate::domain::limit::LimitSnapshot;
 use crate::domain::period::Window;
+use crate::domain::plan::Plan;
 use crate::domain::preferences::{Language, PollInterval, Preferences};
 use crate::domain::refresh::ManualRefresh;
 use crate::domain::summary::TokenWindow;
@@ -139,6 +140,7 @@ pub struct ViewContext {
     pub language: Language,
     pub autostart: bool,
     pub refresh: ManualRefresh,
+    pub plan: Option<Plan>,
     pub now: Timestamp,
 }
 
@@ -179,6 +181,7 @@ pub struct UsageView {
     pub breakdown: BreakdownsView,
     pub autostart: bool,
     pub refresh: RefreshView,
+    pub plan: Option<String>,
     pub generated_at: i64,
 }
 
@@ -189,6 +192,7 @@ impl UsageView {
             language,
             autostart,
             refresh,
+            plan,
             now,
         } = context;
         Self {
@@ -213,6 +217,7 @@ impl UsageView {
             breakdown: breakdowns_view(&report.summary.breakdowns),
             autostart,
             refresh: RefreshView::new(refresh),
+            plan: plan.filter(|_| report.accurate_mode).map(Plan::label),
             generated_at: now.unix_millis(),
         }
     }
@@ -322,6 +327,7 @@ mod tests {
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::period::Window;
+    use crate::domain::plan::{Plan, PlanKind};
     use crate::domain::preferences::{Language, Preferences};
     use crate::domain::refresh::ManualRefresh;
     use crate::domain::summary::{TokenWindow, UsageSummary};
@@ -395,6 +401,10 @@ mod tests {
                 refresh: ManualRefresh::CoolingDown {
                     until: NOW + Span::minutes(1),
                 },
+                plan: Some(Plan {
+                    kind: PlanKind::Max,
+                    multiplier: Some(5),
+                }),
                 now: NOW,
             },
         ))
@@ -452,9 +462,33 @@ mod tests {
                     "state": "cooling",
                     "readyAt": (NOW + Span::minutes(1)).unix_millis()
                 },
+                "plan": "Max 5x",
                 "generatedAt": NOW.unix_millis()
             })
         );
+    }
+
+    #[test]
+    fn the_plan_is_hidden_outside_accurate_mode() {
+        let window = Window::starting_at(NOW - Span::hours(1), Span::FIVE_HOURS);
+        let report = Report {
+            accurate_mode: false,
+            ..sample_report(window)
+        };
+        let view = UsageView::from_report(
+            &report,
+            ViewContext {
+                language: Language::English,
+                autostart: false,
+                refresh: ManualRefresh::Blocked,
+                plan: Some(Plan {
+                    kind: PlanKind::Pro,
+                    multiplier: None,
+                }),
+                now: NOW,
+            },
+        );
+        assert_eq!(view.plan, None);
     }
 
     #[test]
