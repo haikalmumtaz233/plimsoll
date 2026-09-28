@@ -9,6 +9,7 @@ use thiserror::Error;
 use zeroize::Zeroizing;
 
 use crate::domain::clock::Timestamp;
+use crate::domain::plan::Plan;
 use crate::sources::claude_home_from;
 
 pub const MAX_CREDENTIALS_BYTES: usize = 64 * 1024;
@@ -61,6 +62,21 @@ struct OAuthEntry {
     expires_at: Option<i64>,
 }
 
+#[derive(Deserialize)]
+struct PlanFile {
+    #[serde(rename = "claudeAiOauth", default)]
+    oauth: Option<PlanEntry>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlanEntry {
+    #[serde(default)]
+    subscription_type: Option<String>,
+    #[serde(default)]
+    rate_limit_tier: Option<String>,
+}
+
 fn zeroizing_string<'de, D>(deserializer: D) -> Result<Option<Zeroizing<String>>, D::Error>
 where
     D: Deserializer<'de>,
@@ -103,6 +119,21 @@ pub fn parse_access_token(bytes: &[u8], now: Timestamp) -> Result<AccessToken, C
     Ok(AccessToken(token))
 }
 
+pub fn read_plan(path: &Path) -> Result<Option<Plan>, CredentialsError> {
+    let bytes = read_limited(path)?;
+    parse_plan(&bytes)
+}
+
+pub fn parse_plan(bytes: &[u8]) -> Result<Option<Plan>, CredentialsError> {
+    let file: PlanFile = serde_json::from_slice(bytes).map_err(|_| CredentialsError::Malformed)?;
+    Ok(file.oauth.and_then(|entry| {
+        Plan::from_fields(
+            entry.subscription_type.as_deref()?,
+            entry.rate_limit_tier.as_deref(),
+        )
+    }))
+}
+
 fn read_limited(path: &Path) -> Result<Zeroizing<Vec<u8>>, CredentialsError> {
     let file = File::open(path).map_err(|error| match error.kind() {
         io::ErrorKind::NotFound => CredentialsError::Missing,
@@ -121,9 +152,10 @@ fn read_limited(path: &Path) -> Result<Zeroizing<Vec<u8>>, CredentialsError> {
 mod tests {
     use super::{
         CredentialsError, MAX_CREDENTIALS_BYTES, credentials_path_from, parse_access_token,
-        read_access_token,
+        parse_plan, read_access_token, read_plan,
     };
     use crate::domain::clock::Timestamp;
+    use crate::domain::plan::{Plan, PlanKind};
     use crate::sources::test_env::lookup;
     use serde_json::json;
     use std::fs;
@@ -218,6 +250,58 @@ mod tests {
                 Err(CredentialsError::Malformed)
             ));
         }
+    }
+
+    #[test]
+    fn reads_the_plan_without_needing_a_valid_token() {
+        assert_eq!(
+            parse_plan(&credentials(Some(0))).expect("plan"),
+            Some(Plan {
+                kind: PlanKind::Pro,
+                multiplier: None
+            })
+        );
+        let max = json!({
+            "claudeAiOauth": {
+                "subscriptionType": "max",
+                "rateLimitTier": "default_claude_max_20x"
+            }
+        });
+        assert_eq!(
+            parse_plan(max.to_string().as_bytes())
+                .expect("plan")
+                .and_then(|plan| plan.multiplier),
+            Some(20)
+        );
+    }
+
+    #[test]
+    fn a_missing_or_unknown_plan_is_none() {
+        for body in [
+            json!({}),
+            json!({ "claudeAiOauth": {} }),
+            json!({ "claudeAiOauth": { "subscriptionType": null } }),
+            json!({ "claudeAiOauth": { "subscriptionType": "platinum" } }),
+        ] {
+            assert_eq!(
+                parse_plan(body.to_string().as_bytes()).expect("parsed"),
+                None
+            );
+        }
+        assert!(matches!(
+            parse_plan(b"not json"),
+            Err(CredentialsError::Malformed)
+        ));
+    }
+
+    #[test]
+    fn reads_the_plan_from_disk() {
+        let path = scratch_file("plan", &credentials(None));
+        assert_eq!(
+            read_plan(&path).expect("plan").map(|plan| plan.kind),
+            Some(PlanKind::Pro)
+        );
+        fs::remove_file(&path).expect("cleanup");
     }
 
     #[test]

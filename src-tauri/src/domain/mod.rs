@@ -7,6 +7,7 @@ pub mod history;
 pub mod limit;
 pub mod manual;
 pub mod period;
+pub mod plan;
 pub mod preferences;
 pub mod record;
 pub mod refresh;

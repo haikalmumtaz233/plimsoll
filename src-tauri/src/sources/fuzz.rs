@@ -2,7 +2,7 @@ use std::io::{BufReader, Cursor};
 
 use super::jsonl::line;
 use super::jsonl::reader::{LineRead, read_line_bounded};
-use super::oauth::credentials::parse_access_token;
+use super::oauth::credentials::{parse_access_token, parse_plan};
 use super::oauth::response;
 use super::rfc3339;
 use crate::domain::clock::Timestamp;
@@ -68,6 +68,7 @@ const OAUTH_SEEDS: &[&[u8]] = &[
 const CREDENTIAL_SEEDS: &[&[u8]] = &[
     br#"{"claudeAiOauth":{"accessToken":"fuzz-value","expiresAt":1790400000000,"scopes":["user:inference"]}}"#,
     br#"{"claudeAiOauth":{"accessToken":"fuzz-value","expiresAt":null}}"#,
+    br#"{"claudeAiOauth":{"subscriptionType":"max","rateLimitTier":"default_claude_max_20x"}}"#,
 ];
 
 #[derive(Debug)]
@@ -211,6 +212,20 @@ fn credentials_never_panic_and_never_yield_an_empty_token() {
         if let Ok(token) = parse_access_token(&input, NOW) {
             parsed += 1;
             assert!(!token.secret().is_empty());
+        }
+    }
+    assert!(parsed > 0);
+}
+
+#[test]
+fn plans_never_panic_and_always_have_a_short_label() {
+    let mut mutator = Mutator::new(0x5eed_0006);
+    let mut parsed = 0;
+    for _ in 0..ROUNDS {
+        let input = mutator.input(CREDENTIAL_SEEDS);
+        if let Ok(Some(plan)) = parse_plan(&input) {
+            parsed += 1;
+            assert!(plan.label().len() <= "Enterprise 255x".len());
         }
     }
     assert!(parsed > 0);
