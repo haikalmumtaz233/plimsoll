@@ -196,6 +196,7 @@
   <AppHeader
     {messages}
     versionLabel={version === undefined ? "" : formatVersion(version)}
+    planLabel={view?.plan ?? null}
     {settingsOpen}
     ontogglesettings={() => {
       settingsOpen = !settingsOpen;

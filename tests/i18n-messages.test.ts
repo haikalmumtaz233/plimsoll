@@ -21,6 +21,13 @@ describe("message catalogs", () => {
   });
 });
 
+describe("plan labels", () => {
+  it("name the plan for screen readers in both languages", () => {
+    expect(en.app.plan("Max 20x")).toBe("Claude Max 20x plan");
+    expect(id.app.plan("Pro")).toBe("Paket Claude Pro");
+  });
+});
+
 describe("localeFromTag", () => {
   it("maps indonesian tags to id and everything else to en", () => {
     expect(localeFromTag("id-ID")).toBe("id");
