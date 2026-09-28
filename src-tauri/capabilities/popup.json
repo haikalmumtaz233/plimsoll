@@ -11,6 +11,7 @@
     "allow-refresh-now",
     "allow-open-login",
     "allow-set-cli-fallback",
+    "allow-open-usage-page",
     "allow-set-accurate-mode",
     "allow-set-preferences",
     "allow-set-manual-percent",
