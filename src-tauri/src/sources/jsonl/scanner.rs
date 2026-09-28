@@ -13,33 +13,33 @@ const EXTENSION: &str = "jsonl";
 
 #[derive(Debug)]
 pub struct JsonlSource {
-    root: PathBuf,
+    roots: Vec<PathBuf>,
     offsets: HashMap<PathBuf, u64>,
     seen: HashSet<EventKey>,
 }
 
 impl JsonlSource {
     #[must_use]
-    pub fn new(root: PathBuf) -> Self {
-        Self {
-            root,
-            offsets: HashMap::new(),
-            seen: HashSet::new(),
-        }
+    pub fn new(roots: Vec<PathBuf>) -> Self {
+        Self::with_offsets(roots, Vec::new())
     }
 
     #[must_use]
-    pub fn with_offsets(root: PathBuf, offsets: Vec<(PathBuf, u64)>) -> Self {
+    pub fn with_offsets(roots: Vec<PathBuf>, offsets: Vec<(PathBuf, u64)>) -> Self {
         Self {
-            root,
+            roots,
             offsets: offsets.into_iter().collect(),
             seen: HashSet::new(),
         }
     }
 
     #[must_use]
-    pub fn root(&self) -> &Path {
-        &self.root
+    pub fn roots(&self) -> &[PathBuf] {
+        &self.roots
+    }
+
+    pub fn set_roots(&mut self, roots: Vec<PathBuf>) {
+        self.roots = roots;
     }
 
     #[must_use]
@@ -55,7 +55,7 @@ impl JsonlSource {
 
     pub fn poll(&mut self) -> Result<Vec<KeyedEvent>, SourceError> {
         let mut events = Vec::new();
-        for path in discover(&self.root)? {
+        for path in discover(&self.roots)? {
             let offset = self.offsets.get(&path).copied().unwrap_or(0);
             let seen = &mut self.seen;
             let result =
@@ -80,12 +80,13 @@ impl JsonlSource {
     }
 }
 
-fn discover(root: &Path) -> io::Result<Vec<PathBuf>> {
+fn discover(roots: &[PathBuf]) -> io::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
-    if root.is_dir() {
+    for root in roots.iter().filter(|root| root.is_dir()) {
         collect(root, 0, &mut files)?;
     }
     files.sort();
+    files.dedup();
     Ok(files)
 }
 
@@ -164,7 +165,7 @@ mod tests {
         );
         append(&root.join("project-a").join("notes.md"), "ignored\n");
 
-        let mut source = JsonlSource::new(root.clone());
+        let mut source = JsonlSource::new(vec![root.clone()]);
         let first = source.poll().expect("first poll");
         assert_eq!(first.len(), 2);
         assert_eq!(first[0].event.tokens.output, 10);
@@ -190,7 +191,7 @@ mod tests {
         fs::create_dir_all(&nested).expect("create nested dir");
         append(&nested.join("agent.jsonl"), &usage_line("msg_9", 90));
 
-        let mut source = JsonlSource::new(root.clone());
+        let mut source = JsonlSource::new(vec![root.clone()]);
         let events = source.poll().expect("poll");
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event.project, "project-a");
@@ -204,13 +205,13 @@ mod tests {
         let session = root.join("project-a").join("session.jsonl");
         append(&session, &usage_line("msg_1", 10));
 
-        let mut first = JsonlSource::new(root.clone());
+        let mut first = JsonlSource::new(vec![root.clone()]);
         assert_eq!(first.poll().expect("first poll").len(), 1);
         let offsets = first.offsets();
         assert_eq!(offsets.len(), 1);
 
         append(&session, &usage_line("msg_2", 20));
-        let mut resumed = JsonlSource::with_offsets(root.clone(), offsets);
+        let mut resumed = JsonlSource::with_offsets(vec![root.clone()], offsets);
         let events = resumed.poll().expect("resumed poll");
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].key.message_id, "msg_2");
@@ -220,8 +221,33 @@ mod tests {
 
     #[test]
     fn missing_root_yields_no_events() {
-        let mut source = JsonlSource::new(PathBuf::from("Z:\\plimsoll-missing-root"));
+        let missing = PathBuf::from("Z:\\plimsoll-missing-root");
+        let mut source = JsonlSource::new(vec![missing.clone()]);
         assert!(source.poll().expect("poll").is_empty());
-        assert_eq!(source.root(), Path::new("Z:\\plimsoll-missing-root"));
+        assert_eq!(source.roots(), [missing]);
+    }
+
+    #[test]
+    fn reads_every_root_and_follows_root_changes() {
+        let first = scratch_dir("root-one");
+        let second = scratch_dir("root-two");
+        append(
+            &first.join("project-a").join("a.jsonl"),
+            &usage_line("msg_a", 1),
+        );
+        append(
+            &second.join("project-a").join("b.jsonl"),
+            &usage_line("msg_b", 2),
+        );
+
+        let mut source = JsonlSource::new(vec![first.clone()]);
+        assert_eq!(source.poll().expect("first root").len(), 1);
+        source.set_roots(vec![first.clone(), second.clone(), first.clone()]);
+        let added = source.poll().expect("both roots");
+        assert_eq!(added.len(), 1);
+        assert_eq!(added[0].key.message_id, "msg_b");
+
+        fs::remove_dir_all(&first).expect("cleanup");
+        fs::remove_dir_all(&second).expect("cleanup");
     }
 }

@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use notify::RecommendedWatcher;
 use tauri::async_runtime::{self, JoinHandle};
@@ -29,7 +29,7 @@ use crate::domain::refresh::{
 use crate::error::AppError;
 use crate::i18n::Text;
 use crate::sources::cli::login;
-use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
+use crate::sources::jsonl::{roots, scanner::JsonlSource, watch};
 use crate::sources::oauth::credentials::{self, CredentialsError};
 use crate::sources::oauth::poll::{self, PollResult};
 use crate::sources::oauth::schedule::{Jitter, PollSchedule};
@@ -47,6 +47,7 @@ pub const ALERT_EVENT: &str = "usage://alert";
 const DATABASE_FILE: &str = "plimsoll.sqlite";
 const TICK: Duration = Duration::from_secs(60);
 const DEBOUNCE: Duration = Duration::from_millis(300);
+const ROOT_REDISCOVERY: Duration = Duration::from_secs(10 * 60);
 const POPUP_FRESHNESS: Span = Span::minutes(2);
 const CODING_FRESHNESS: Span = Span::minutes(5);
 
@@ -63,7 +64,7 @@ struct Shared {
     sync: Mutex<SyncState>,
     plan: Mutex<Option<Plan>>,
     login_running: AtomicBool,
-    watcher: Mutex<Option<RecommendedWatcher>>,
+    watchers: Mutex<Vec<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
     startup: Option<Startup>,
@@ -89,7 +90,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         sync: Mutex::new(SyncState::default()),
         plan: Mutex::new(None),
         login_running: AtomicBool::new(false),
-        watcher: Mutex::new(None),
+        watchers: Mutex::new(Vec::new()),
         refresh,
         menu_language: Mutex::new(None),
         startup: Startup::current(&app.package_info().name)
@@ -101,11 +102,15 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
             })
             .ok(),
     });
-    let root = jsonl::projects_root();
-    if let Some(root) = &root {
+    let roots = roots::discover();
+    diagnostics::info(
+        "jsonl",
+        &format!("reading claude code usage from {} folders", roots.len()),
+    );
+    for root in &roots {
         watch_projects(app, root);
     }
-    spawn_jsonl_worker(app.clone(), root, changes);
+    spawn_jsonl_worker(app.clone(), roots, changes);
     if accurate_mode {
         start_poller(app);
     }
@@ -295,10 +300,11 @@ fn watch_projects<R: Runtime>(app: &AppHandle<R>, root: &Path) {
         refresh.send(()).ok();
     }) {
         Ok(watcher) => {
-            *shared
-                .watcher
+            shared
+                .watchers
                 .lock()
-                .unwrap_or_else(PoisonError::into_inner) = Some(watcher);
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(watcher);
         }
         Err(error) => diagnostics::error(
             "jsonl",
@@ -307,14 +313,17 @@ fn watch_projects<R: Runtime>(app: &AppHandle<R>, root: &Path) {
     }
 }
 
-fn spawn_jsonl_worker<R: Runtime>(app: AppHandle<R>, root: Option<PathBuf>, changes: Receiver<()>) {
+fn spawn_jsonl_worker<R: Runtime>(app: AppHandle<R>, roots: Vec<PathBuf>, changes: Receiver<()>) {
     thread::spawn(move || {
         let offsets = with_engine(&app, |engine| engine.offsets()).unwrap_or_default();
-        let mut source = root.map(|root| JsonlSource::with_offsets(root, offsets));
+        let mut source = JsonlSource::with_offsets(roots, offsets);
+        let mut discovered_at = Instant::now();
         loop {
-            if let Some(source) = source.as_mut() {
-                ingest(&app, source);
+            if discovered_at.elapsed() >= ROOT_REDISCOVERY {
+                rediscover(&mut source);
+                discovered_at = Instant::now();
             }
+            ingest(&app, &mut source);
             publish(&app);
             match changes.recv_timeout(TICK) {
                 Ok(()) => settle(&changes),
@@ -323,6 +332,17 @@ fn spawn_jsonl_worker<R: Runtime>(app: AppHandle<R>, root: Option<PathBuf>, chan
             }
         }
     });
+}
+
+fn rediscover(source: &mut JsonlSource) {
+    let roots = roots::discover();
+    if roots != source.roots() {
+        diagnostics::info(
+            "jsonl",
+            &format!("now reading claude code usage from {} folders", roots.len()),
+        );
+        source.set_roots(roots);
+    }
 }
 
 fn settle(changes: &Receiver<()>) {
