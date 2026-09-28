@@ -8,8 +8,9 @@ const SECONDS_PER_MINUTE: u64 = 60;
 pub struct PollInterval(u8);
 
 impl PollInterval {
-    pub const CHOICES: [u8; 4] = [1, 2, 5, 10];
-    pub const DEFAULT: Self = Self(1);
+    pub const CHOICES: [u8; 5] = [0, 1, 2, 5, 10];
+    pub const ADAPTIVE: Self = Self(0);
+    pub const DEFAULT: Self = Self::ADAPTIVE;
 
     #[must_use]
     pub fn from_minutes(minutes: u8) -> Option<Self> {
@@ -22,8 +23,16 @@ impl PollInterval {
     }
 
     #[must_use]
-    pub fn duration(self) -> Duration {
-        Duration::from_secs(u64::from(self.0) * SECONDS_PER_MINUTE)
+    pub const fn is_adaptive(self) -> bool {
+        self.0 == Self::ADAPTIVE.0
+    }
+
+    #[must_use]
+    pub fn fixed_duration(self) -> Option<Duration> {
+        if self.is_adaptive() {
+            return None;
+        }
+        Some(Duration::from_secs(u64::from(self.0) * SECONDS_PER_MINUTE))
     }
 }
 
@@ -118,16 +127,17 @@ mod tests {
                 Some(minutes)
             );
         }
-        for minutes in [0, 3, 30, u8::MAX] {
+        for minutes in [3, 30, u8::MAX] {
             assert_eq!(PollInterval::from_minutes(minutes), None);
         }
     }
 
     #[test]
     fn intervals_convert_to_durations() {
-        assert_eq!(PollInterval::DEFAULT.duration(), Duration::from_secs(60));
+        assert!(PollInterval::DEFAULT.is_adaptive());
+        assert_eq!(PollInterval::ADAPTIVE.fixed_duration(), None);
         assert_eq!(
-            PollInterval::from_minutes(10).map(PollInterval::duration),
+            PollInterval::from_minutes(10).and_then(PollInterval::fixed_duration),
             Some(Duration::from_secs(600))
         );
     }

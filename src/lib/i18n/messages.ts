@@ -79,6 +79,7 @@ export interface Messages {
     criticalAt: string;
     refresh: string;
     interval: (minutes: number) => string;
+    adaptive: string;
     language: string;
     languageNames: Record<LanguageChoice, string>;
     autostart: string;
@@ -186,6 +187,7 @@ export const en: Messages = {
     criticalAt: "Critical at",
     refresh: "Refresh official usage",
     interval: (minutes) => (minutes === 1 ? "Every minute" : `Every ${String(minutes)} minutes`),
+    adaptive: "Adaptive (recommended)",
     language: "Language",
     languageNames: { system: "Match Windows", en: "English", id: "Bahasa Indonesia" },
     autostart: "Start Plimsoll when Windows starts",
@@ -205,7 +207,7 @@ export const en: Messages = {
       endpoint: "Uses an undocumented endpoint that may stop working.",
       unofficial: "Not an official Anthropic feature.",
       requests: (minutes) =>
-        `Checks ${minutes === 1 ? "every minute" : `every ${String(minutes)} minutes`}. Turn off anytime.`,
+        `Checks ${minutes === 0 ? "every 2 to 30 minutes, faster while you use Claude" : minutes === 1 ? "every minute" : `every ${String(minutes)} minutes`}. Turn off anytime.`,
     },
     confirm: "Turn on",
     cancel: "Cancel",
@@ -297,6 +299,7 @@ export const id: Messages = {
     criticalAt: "Kritis di",
     refresh: "Perbarui pemakaian resmi",
     interval: (minutes) => (minutes === 1 ? "Setiap menit" : `Setiap ${String(minutes)} menit`),
+    adaptive: "Adaptif (disarankan)",
     language: "Bahasa",
     languageNames: { system: "Ikuti Windows", en: "English", id: "Bahasa Indonesia" },
     autostart: "Jalankan Plimsoll saat Windows dimulai",
@@ -316,7 +319,7 @@ export const id: Messages = {
       endpoint: "Memakai endpoint tak terdokumentasi yang bisa berhenti berfungsi.",
       unofficial: "Bukan fitur resmi Anthropic.",
       requests: (minutes) =>
-        `Cek ${minutes === 1 ? "setiap menit" : `setiap ${String(minutes)} menit`}. Bisa dimatikan kapan saja.`,
+        `Cek ${minutes === 0 ? "tiap 2 sampai 30 menit, lebih sering saat Claude dipakai" : minutes === 1 ? "setiap menit" : `setiap ${String(minutes)} menit`}. Bisa dimatikan kapan saja.`,
     },
     confirm: "Aktifkan",
     cancel: "Batal",

@@ -29,6 +29,10 @@ export function manualPercentError(value: number, messages: Messages): string | 
     : messages.manual.invalid;
 }
 
+export const ADAPTIVE_INTERVAL = 0;
+
 export function intervalLabel(minutes: number, messages: Messages): string {
-  return messages.settings.interval(minutes);
+  return minutes === ADAPTIVE_INTERVAL
+    ? messages.settings.adaptive
+    : messages.settings.interval(minutes);
 }
