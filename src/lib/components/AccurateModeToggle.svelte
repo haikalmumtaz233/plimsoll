@@ -66,15 +66,11 @@
       type="checkbox"
       checked={enabled}
       disabled={busy || confirming}
-      aria-describedby="accurate-mode-help"
       bind:this={checkbox}
       onchange={handleChange}
     />
     <label for="accurate-mode">{messages.accurate.label}</label>
   </div>
-  <p id="accurate-mode-help" class="help">
-    {messages.accurate.help}
-  </p>
   {#if confirming}
     <div
       class="confirm"
@@ -110,8 +106,8 @@
   .toggle {
     display: grid;
     gap: var(--space-1);
-    padding-top: var(--space-2);
-    border-top: 0.0625rem solid var(--color-border);
+    padding-bottom: var(--space-2);
+    border-bottom: 0.0625rem solid var(--color-border);
   }
 
   .control {
@@ -126,12 +122,6 @@
     height: 1.125rem;
     margin: 0;
     accent-color: var(--color-focus);
-  }
-
-  .help {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--color-text-muted);
   }
 
   .confirm {

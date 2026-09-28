@@ -73,12 +73,10 @@ export interface Messages {
   settings: {
     title: string;
     alertLevels: string;
-    alertHelp: string;
     warningAt: string;
     highAt: string;
     criticalAt: string;
     refresh: string;
-    refreshHelp: string;
     interval: (minutes: number) => string;
     language: string;
     languageNames: Record<LanguageChoice, string>;
@@ -92,7 +90,6 @@ export interface Messages {
   };
   accurate: {
     label: string;
-    help: string;
     confirmTitle: string;
     risks: {
       token: string;
@@ -182,12 +179,10 @@ export const en: Messages = {
   settings: {
     title: "Settings",
     alertLevels: "Alert levels",
-    alertHelp: "The tray color changes at these percentages of a limit.",
     warningAt: "Warning at",
     highAt: "High at",
     criticalAt: "Critical at",
     refresh: "Refresh official usage",
-    refreshHelp: "Used while accurate mode is on.",
     interval: (minutes) => (minutes === 1 ? "Every minute" : `Every ${String(minutes)} minutes`),
     language: "Language",
     languageNames: { system: "Match Windows", en: "English", id: "Bahasa Indonesia" },
@@ -201,19 +196,14 @@ export const en: Messages = {
   },
   accurate: {
     label: "Accurate mode",
-    help: "Reads the Claude Code sign-in on this PC to show official percentages from Anthropic. The token stays in memory and is never saved or sent anywhere else.",
-    confirmTitle: "Before you turn on accurate mode",
+    confirmTitle: "Turn on accurate mode?",
     risks: {
-      token:
-        "Plimsoll reads the sign-in token that Claude Code saved on this PC and uses it only to ask Anthropic for your usage.",
-      storage:
-        "The token stays in memory. It is never written to disk, logged or sent anywhere else.",
-      endpoint:
-        "The usage endpoint is undocumented. Anthropic may change or block it at any time, and Plimsoll then falls back to local estimates.",
-      unofficial:
-        "This is not an official Anthropic feature. Turn it on only if you are comfortable with that.",
+      token: "Reads the Claude Code sign-in token on this PC.",
+      storage: "The token stays in memory, never saved or sent elsewhere.",
+      endpoint: "Uses an undocumented endpoint that may stop working.",
+      unofficial: "Not an official Anthropic feature.",
       requests: (minutes) =>
-        `While it is on, Plimsoll asks for your usage ${minutes === 1 ? "once a minute" : `every ${String(minutes)} minutes`}. You can turn it off at any time.`,
+        `Checks ${minutes === 1 ? "every minute" : `every ${String(minutes)} minutes`}. Turn off anytime.`,
     },
     confirm: "Turn on",
     cancel: "Cancel",
@@ -299,12 +289,10 @@ export const id: Messages = {
   settings: {
     title: "Pengaturan",
     alertLevels: "Level peringatan",
-    alertHelp: "Warna tray berubah pada persentase limit ini.",
     warningAt: "Peringatan di",
     highAt: "Tinggi di",
     criticalAt: "Kritis di",
     refresh: "Perbarui pemakaian resmi",
-    refreshHelp: "Dipakai saat mode akurat aktif.",
     interval: (minutes) => (minutes === 1 ? "Setiap menit" : `Setiap ${String(minutes)} menit`),
     language: "Bahasa",
     languageNames: { system: "Ikuti Windows", en: "English", id: "Bahasa Indonesia" },
@@ -318,19 +306,14 @@ export const id: Messages = {
   },
   accurate: {
     label: "Mode akurat",
-    help: "Membaca login Claude Code di PC ini untuk menampilkan persentase resmi dari Anthropic. Token hanya ada di memori dan tidak pernah disimpan atau dikirim ke tempat lain.",
-    confirmTitle: "Sebelum mengaktifkan mode akurat",
+    confirmTitle: "Aktifkan mode akurat?",
     risks: {
-      token:
-        "Plimsoll membaca token login yang disimpan Claude Code di PC ini dan hanya memakainya untuk meminta data pemakaian Anda ke Anthropic.",
-      storage:
-        "Token hanya ada di memori. Token tidak pernah ditulis ke disk, dicatat di log, atau dikirim ke tempat lain.",
-      endpoint:
-        "Endpoint pemakaian ini tidak terdokumentasi. Anthropic bisa mengubah atau memblokirnya kapan saja, dan Plimsoll akan kembali ke estimasi lokal.",
-      unofficial:
-        "Ini bukan fitur resmi Anthropic. Aktifkan hanya jika Anda nyaman dengan hal itu.",
+      token: "Membaca token login Claude Code di PC ini.",
+      storage: "Token hanya di memori, tidak disimpan atau dikirim ke tempat lain.",
+      endpoint: "Memakai endpoint tak terdokumentasi yang bisa berhenti berfungsi.",
+      unofficial: "Bukan fitur resmi Anthropic.",
       requests: (minutes) =>
-        `Selama aktif, Plimsoll meminta data pemakaian ${minutes === 1 ? "setiap menit" : `setiap ${String(minutes)} menit`}. Anda bisa mematikannya kapan saja.`,
+        `Cek ${minutes === 1 ? "setiap menit" : `setiap ${String(minutes)} menit`}. Bisa dimatikan kapan saja.`,
     },
     confirm: "Aktifkan",
     cancel: "Batal",
