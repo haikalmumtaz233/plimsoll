@@ -13,14 +13,16 @@ use tokio::sync::Notify;
 
 use super::engine::{Engine, Report};
 use super::startup::Startup;
-use super::view::{AlertView, UsageView};
+use super::view::{AlertView, UsageView, ViewContext};
 use super::{clock, locale};
 use crate::diagnostics;
 use crate::domain::alerts::Alert;
 use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{Language, Preferences};
-use crate::domain::refresh::{Activity, adaptive_delay};
+use crate::domain::refresh::{
+    Activity, Attempts, MIN_SPACING, ManualRefresh, adaptive_delay, manual_refresh,
+};
 use crate::error::AppError;
 use crate::i18n::Text;
 use crate::sources::jsonl::{self, scanner::JsonlSource, watch};
@@ -40,14 +42,13 @@ pub const ALERT_EVENT: &str = "usage://alert";
 const DATABASE_FILE: &str = "plimsoll.sqlite";
 const TICK: Duration = Duration::from_secs(60);
 const DEBOUNCE: Duration = Duration::from_millis(300);
-const MIN_SPACING: Span = Span::minutes(1);
 const POPUP_FRESHNESS: Span = Span::minutes(2);
 const CODING_FRESHNESS: Span = Span::minutes(5);
 
 #[derive(Debug, Clone, Copy, Default)]
 struct SyncState {
     activity: Activity,
-    last_attempt: Option<Timestamp>,
+    attempts: Attempts,
 }
 
 struct Shared {
@@ -110,14 +111,39 @@ pub fn note_popup_opened<R: Runtime>(app: &AppHandle<R>) {
 
 pub fn current_view<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     let now = clock::now();
-    report(app, now).map(|report| {
-        UsageView::from_report(
-            &report,
-            locale::resolve(report.preferences.language),
-            autostart_enabled(app),
+    report(app, now).map(|report| view_of(app, &report, now))
+}
+
+pub fn refresh_now<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
+    let shared = app.try_state::<Shared>()?;
+    shared.refresh.send(()).ok();
+    let now = clock::now();
+    if manual_state(app, now) == ManualRefresh::Ready {
+        update_sync(app, |state| state.attempts.requested = Some(now));
+        shared.wake.notify_one();
+        diagnostics::info("oauth", "manual refresh requested");
+    }
+    publish(app)
+}
+
+fn view_of<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> UsageView {
+    UsageView::from_report(
+        report,
+        ViewContext {
+            language: locale::resolve(report.preferences.language),
+            autostart: autostart_enabled(app),
+            refresh: manual_state(app, now),
             now,
-        )
+        },
+    )
+}
+
+fn manual_state<R: Runtime>(app: &AppHandle<R>, now: Timestamp) -> ManualRefresh {
+    let healthy = with_engine(app, |engine| {
+        Ok(engine.accurate_mode()? && engine.status() == OAuthStatus::Active)
     })
+    .unwrap_or(false);
+    manual_refresh(healthy, sync_state(app).attempts, now)
 }
 
 pub fn set_accurate_mode<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<UsageView> {
@@ -340,7 +366,8 @@ fn cadence<R: Runtime>(app: &AppHandle<R>) -> Duration {
 fn restart_pause<R: Runtime>(app: &AppHandle<R>) -> Duration {
     let now = clock::now();
     sync_state(app)
-        .last_attempt
+        .attempts
+        .last
         .map_or(Duration::ZERO, |at| (at + MIN_SPACING - now).to_duration())
 }
 
@@ -354,18 +381,12 @@ fn note_coding<R: Runtime>(app: &AppHandle<R>, latest: Timestamp) {
 }
 
 fn wake_if_stale<R: Runtime>(app: &AppHandle<R>, freshness: Span, now: Timestamp) {
-    let due = with_engine(app, |engine| {
-        if !engine.accurate_mode()? || engine.status() != OAuthStatus::Active {
-            return Ok(false);
-        }
+    let stale = with_engine(app, |engine| {
         let last = engine.last_official_at()?;
         Ok(last.is_none_or(|at| now - at > freshness))
     });
-    let spaced = sync_state(app)
-        .last_attempt
-        .is_none_or(|at| now - at >= MIN_SPACING);
-    if due == Some(true)
-        && spaced
+    if stale == Some(true)
+        && manual_state(app, now) == ManualRefresh::Ready
         && let Some(wake) = wake_handle(app)
     {
         wake.notify_one();
@@ -388,7 +409,7 @@ fn update_sync<R: Runtime>(
 
 fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
     let now = clock::now();
-    update_sync(app, |state| state.last_attempt = Some(now));
+    update_sync(app, |state| state.attempts.last = Some(now));
     let previous = with_engine(app, |engine| Ok(engine.status()));
     log_oauth(previous, result);
     let outcome = with_engine(app, |engine| {
@@ -432,7 +453,7 @@ fn publish<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
     let now = clock::now();
     let report = report(app, now)?;
     let language = locale::resolve(report.preferences.language);
-    let view = UsageView::from_report(&report, language, autostart_enabled(app), now);
+    let view = view_of(app, &report, now);
     if let Err(error) = app.emit(USAGE_EVENT, &view) {
         diagnostics::error("app", &format!("failed to publish usage: {error}"));
     }

@@ -1,5 +1,6 @@
 const COMMANDS: &[&str] = &[
     "usage_summary",
+    "refresh_now",
     "set_accurate_mode",
     "set_preferences",
     "set_manual_percent",

@@ -8,6 +8,7 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "allow-usage-summary",
+    "allow-refresh-now",
     "allow-set-accurate-mode",
     "allow-set-preferences",
     "allow-set-manual-percent",
