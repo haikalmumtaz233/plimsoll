@@ -11,6 +11,7 @@
     loadUsage,
     onUsageAlert,
     onUsageUpdated,
+    openLogin,
     refreshNow,
     saveManualPercent,
     savePreferences,
@@ -41,6 +42,7 @@
   let settingsOpen = $state(false);
   let announcement = $state("");
   let clock = $state(Date.now());
+  let loginError = $state("");
 
   const refreshState = $derived(
     view === undefined ? "blocked" : effectiveRefresh(view.refresh, clock),
@@ -153,6 +155,15 @@
       accept(await refreshNow());
     } catch {
       clock = Date.now();
+    }
+  }
+
+  async function login() {
+    loginError = "";
+    try {
+      accept(await openLogin());
+    } catch {
+      loginError = messages.login.failed;
     }
   }
 
@@ -286,6 +297,20 @@
         </button>
       {/if}
     </div>
+    {#if view.login !== "hidden"}
+      <div class="login">
+        {#if view.login === "running"}
+          <p class="login-note" role="status">{messages.login.running}</p>
+        {:else}
+          <button type="button" class="login-button" onclick={login}>
+            {messages.login.ready}
+          </button>
+        {/if}
+        {#if loginError !== ""}
+          <p class="error" role="alert">{loginError}</p>
+        {/if}
+      </div>
+    {/if}
     {#if view.limits.length > 0}
       {#each view.limits as limit (limit.kind)}
         <LimitCard
@@ -404,6 +429,30 @@
   .refresh[aria-disabled="true"] {
     color: var(--color-text-muted);
     cursor: default;
+  }
+
+  .login {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .login-button {
+    justify-self: start;
+    min-height: 1.75rem;
+    padding: 0 var(--space-4);
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    background: transparent;
+    border: 0.0625rem solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+  }
+
+  .login-note {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
   }
 
   .refresh-icon {
