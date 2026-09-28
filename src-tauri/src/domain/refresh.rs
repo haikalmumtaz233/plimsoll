@@ -13,6 +13,16 @@ pub const CODING_DELAY: Span = Span::minutes(5);
 
 pub const MIN_SPACING: Span = Span::minutes(1);
 pub const STALE_GRACE: Span = Span::minutes(5);
+pub const CLI_FALLBACK_SPACING: Span = Span::minutes(10);
+pub const CLI_FALLBACK_FAILURES: u32 = 2;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FallbackState {
+    pub enabled: bool,
+    pub failures: u32,
+    pub token_expired: bool,
+    pub last_run: Option<Timestamp>,
+}
 pub const RUNNING_TIMEOUT: Span = Span::seconds(30);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,6 +37,15 @@ pub enum ManualRefresh {
 pub struct Attempts {
     pub last: Option<Timestamp>,
     pub requested: Option<Timestamp>,
+}
+
+#[must_use]
+pub fn cli_fallback_due(state: FallbackState, now: Timestamp) -> bool {
+    let failing = state.token_expired || state.failures >= CLI_FALLBACK_FAILURES;
+    let spaced = state
+        .last_run
+        .is_none_or(|last| now - last >= CLI_FALLBACK_SPACING);
+    state.enabled && failing && spaced
 }
 
 #[must_use]
@@ -92,8 +111,9 @@ fn popup_delay(since: Span) -> Span {
 #[cfg(test)]
 mod tests {
     use super::{
-        Activity, Attempts, CODING_DELAY, IDLE_DELAY, LONG_IDLE_DELAY, MIN_SPACING, ManualRefresh,
-        RECENT_DELAY, RUNNING_TIMEOUT, STALE_GRACE, WARM_DELAY, adaptive_delay, is_outdated,
+        Activity, Attempts, CLI_FALLBACK_FAILURES, CLI_FALLBACK_SPACING, CODING_DELAY,
+        FallbackState, IDLE_DELAY, LONG_IDLE_DELAY, MIN_SPACING, ManualRefresh, RECENT_DELAY,
+        RUNNING_TIMEOUT, STALE_GRACE, WARM_DELAY, adaptive_delay, cli_fallback_due, is_outdated,
         manual_refresh,
     };
     use crate::domain::clock::{Span, Timestamp};
@@ -201,6 +221,43 @@ mod tests {
         ));
         assert!(!is_outdated(true, Span::minutes(30), LONG_IDLE_DELAY));
         assert!(is_outdated(false, Span::ZERO, LONG_IDLE_DELAY));
+    }
+
+    fn fallback(failures: u32, token_expired: bool, last_run: Option<Span>) -> FallbackState {
+        FallbackState {
+            enabled: true,
+            failures,
+            token_expired,
+            last_run: last_run.map(|ago| NOW - ago),
+        }
+    }
+
+    #[test]
+    fn the_cli_fallback_waits_for_repeated_failures_or_an_expired_token() {
+        assert!(!cli_fallback_due(fallback(0, false, None), NOW));
+        assert!(!cli_fallback_due(fallback(1, false, None), NOW));
+        assert!(cli_fallback_due(
+            fallback(CLI_FALLBACK_FAILURES, false, None),
+            NOW
+        ));
+        assert!(cli_fallback_due(fallback(1, true, None), NOW));
+    }
+
+    #[test]
+    fn the_cli_fallback_is_opt_in_and_spaced_out() {
+        let disabled = FallbackState {
+            enabled: false,
+            ..fallback(5, true, None)
+        };
+        assert!(!cli_fallback_due(disabled, NOW));
+        assert!(!cli_fallback_due(
+            fallback(5, false, Some(Span::seconds(599))),
+            NOW
+        ));
+        assert!(cli_fallback_due(
+            fallback(5, false, Some(CLI_FALLBACK_SPACING)),
+            NOW
+        ));
     }
 
     #[test]
