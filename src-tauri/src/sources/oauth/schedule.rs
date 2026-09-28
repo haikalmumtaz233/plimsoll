@@ -52,6 +52,10 @@ impl PollSchedule {
         }
     }
 
+    pub fn set_base(&mut self, base: Duration) {
+        self.base = base.max(MIN_INTERVAL);
+    }
+
     #[must_use]
     pub const fn failures(&self) -> u32 {
         self.failures
@@ -88,6 +92,15 @@ mod tests {
         assert_eq!(schedule.after_failure(None, Jitter::NONE), MAX_BACKOFF);
         let mut slow = PollSchedule::new(Duration::from_secs(600));
         assert_eq!(slow.after_failure(None, Jitter::NONE), MAX_BACKOFF);
+    }
+
+    #[test]
+    fn the_base_interval_can_change_between_polls() {
+        let mut schedule = PollSchedule::default();
+        schedule.set_base(Duration::from_secs(300));
+        assert_eq!(secs(schedule.after_success(Jitter::NONE)), 300);
+        schedule.set_base(Duration::from_secs(5));
+        assert_eq!(schedule.after_success(Jitter::NONE), MIN_INTERVAL);
     }
 
     #[test]
