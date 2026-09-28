@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0-rc.2] - 2026-09-28
+
 ### Added
 
 - Adaptive refresh, now the default: official usage refreshes every 2 minutes after you open the popup, every 5 minutes while Claude Code is active, and up to every 30 minutes when idle. Opening the popup fetches a fresh reading when the last one is older than 2 minutes.
@@ -87,7 +89,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Opt-in accurate mode that reads the Claude Code sign-in on this PC to fetch official percentages, falling back to local estimates when it is unavailable.
 - Tray icon drawn as a sharp badge at 100 to 300 percent display scaling: the most used limit in percent, colored at 50, 80 and 95 percent, or tokens used when accurate mode is off. The tooltip lists each limit with its reset countdown.
 
-[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.6.0-rc.1...HEAD
+[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.6.0-rc.2...HEAD
+[0.6.0-rc.2]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.6.0-rc.1...v0.6.0-rc.2
 [0.6.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.5.0-rc.1...v0.6.0-rc.1
 [0.5.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.4.0...v0.5.0-rc.1
 [0.4.0]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.3.0...v0.4.0
