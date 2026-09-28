@@ -24,6 +24,8 @@
     autostart: boolean;
     onautostartchange: (enabled: boolean) => Promise<boolean>;
     officialActive: boolean;
+    cliFallback: boolean;
+    onclifallbackchange: (enabled: boolean) => Promise<boolean>;
   }
 
   let {
@@ -38,7 +40,24 @@
     autostart,
     onautostartchange,
     officialActive,
+    cliFallback,
+    onclifallbackchange,
   }: Props = $props();
+
+  let fallbackBusy = $state(false);
+  let fallbackError = $state("");
+
+  async function handleFallback(event: Event & { currentTarget: HTMLInputElement }) {
+    const input = event.currentTarget;
+    fallbackBusy = true;
+    fallbackError = "";
+    const changed = await onclifallbackchange(input.checked);
+    if (!changed) {
+      input.checked = cliFallback;
+      fallbackError = messages.settings.cliFallbackFailed;
+    }
+    fallbackBusy = false;
+  }
 
   let startupBusy = $state(false);
   let startupError = $state("");
@@ -103,6 +122,23 @@
     pollMinutes={preferences.pollMinutes}
     onchange={onaccuratechange}
   />
+  {#if accurateMode}
+    <div class="fallback">
+      <input
+        id="cli-fallback"
+        type="checkbox"
+        checked={cliFallback}
+        disabled={fallbackBusy}
+        aria-describedby="cli-fallback-hint"
+        onchange={handleFallback}
+      />
+      <label for="cli-fallback">{messages.settings.cliFallback}</label>
+      <p class="hint" id="cli-fallback-hint">{messages.settings.cliFallbackHint}</p>
+    </div>
+    {#if fallbackError !== ""}
+      <p class="error" role="alert">{fallbackError}</p>
+    {/if}
+  {/if}
   <form class="form" onsubmit={handleSubmit} novalidate>
     <fieldset class="levels">
       <legend class="legend">{messages.settings.alertLevels}</legend>
@@ -173,6 +209,28 @@
 </section>
 
 <style>
+  .fallback {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-2);
+    font-size: 0.875rem;
+  }
+
+  .fallback input {
+    width: 1.125rem;
+    height: 1.125rem;
+    margin: 0;
+    accent-color: var(--color-focus);
+  }
+
+  .hint {
+    grid-column: 2;
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+  }
+
   .startup {
     display: flex;
     align-items: center;

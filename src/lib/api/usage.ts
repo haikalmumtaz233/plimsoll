@@ -106,6 +106,7 @@ export interface RefreshView {
 
 export interface UsageView {
   accurateMode: boolean;
+  cliFallback: boolean;
   status: OAuthStatus;
   preferences: PreferencesView;
   limits: LimitView[];
@@ -145,6 +146,10 @@ export function savePreferences(preferences: PreferencesInput): Promise<UsageVie
 
 export function saveManualPercent(kind: LimitKind, percent: number | null): Promise<UsageView> {
   return invoke<UsageView>("set_manual_percent", { reading: { kind, percent } });
+}
+
+export function setCliFallback(enabled: boolean): Promise<UsageView> {
+  return invoke<UsageView>("set_cli_fallback", { enabled });
 }
 
 export function setAutostart(enabled: boolean): Promise<UsageView> {
