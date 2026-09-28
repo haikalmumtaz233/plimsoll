@@ -17,6 +17,7 @@
     savePreferences,
     setAccurateMode,
     setAutostart,
+    setCliFallback,
     type LimitKind,
     type PreferencesInput,
     type UsageView,
@@ -167,6 +168,15 @@
     }
   }
 
+  async function changeCliFallback(enabled: boolean): Promise<boolean> {
+    try {
+      accept(await setCliFallback(enabled));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function changeAutostart(enabled: boolean): Promise<boolean> {
     try {
       accept(await setAutostart(enabled));
@@ -244,6 +254,8 @@
       autostart={view.autostart}
       onautostartchange={changeAutostart}
       officialActive={view.limits.length > 0}
+      cliFallback={view.cliFallback}
+      onclifallbackchange={changeCliFallback}
     />
     {#if toggleError !== ""}
       <p class="error" role="alert">{toggleError}</p>

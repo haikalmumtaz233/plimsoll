@@ -92,6 +92,9 @@ export interface Messages {
     languageNames: Record<LanguageChoice, string>;
     autostart: string;
     autostartFailed: string;
+    cliFallback: string;
+    cliFallbackHint: string;
+    cliFallbackFailed: string;
     save: string;
     saved: string;
     saveFailed: string;
@@ -213,6 +216,10 @@ export const en: Messages = {
     languageNames: { system: "Match Windows", en: "English", id: "Bahasa Indonesia" },
     autostart: "Start Plimsoll when Windows starts",
     autostartFailed: "Could not change the startup setting. Try again.",
+    cliFallback: "Ask Claude Code when official data fails",
+    cliFallbackHint:
+      "After two failed checks or an expired sign-in, runs Claude Code's /usage in the background, at most every 10 minutes.",
+    cliFallbackFailed: "Could not change the fallback setting. Try again.",
     save: "Save",
     saved: "Saved.",
     saveFailed: "Could not save settings. Try again.",
@@ -338,6 +345,10 @@ export const id: Messages = {
     languageNames: { system: "Ikuti Windows", en: "English", id: "Bahasa Indonesia" },
     autostart: "Jalankan Plimsoll saat Windows dimulai",
     autostartFailed: "Gagal mengubah pengaturan startup. Coba lagi.",
+    cliFallback: "Tanya Claude Code saat data resmi gagal",
+    cliFallbackHint:
+      "Setelah dua kali gagal atau login kedaluwarsa, menjalankan /usage Claude Code di latar belakang, paling sering tiap 10 menit.",
+    cliFallbackFailed: "Gagal mengubah pengaturan cadangan. Coba lagi.",
     save: "Simpan",
     saved: "Tersimpan.",
     saveFailed: "Gagal menyimpan pengaturan. Coba lagi.",
