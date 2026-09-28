@@ -1,4 +1,4 @@
-import type { LanguageChoice, LimitKind, OAuthStatus } from "../api/usage";
+import type { LanguageChoice, LimitKind, OAuthStatus, RefreshState } from "../api/usage";
 import type { HistoryRange } from "../usage/history";
 
 export type Locale = "en" | "id";
@@ -51,6 +51,7 @@ export interface Messages {
     syncing: string;
     reasons: Record<FallbackStatus, string>;
   };
+  refresh: Record<RefreshState, string>;
   history: {
     title: string;
     rangeLegend: string;
@@ -158,6 +159,12 @@ export const en: Messages = {
       unavailable: "Official data unavailable",
       retrying: "Reconnecting…",
     },
+  },
+  refresh: {
+    ready: "Refresh now",
+    running: "Refreshing…",
+    cooling: "Refreshed moments ago, try again in a minute",
+    blocked: "Waiting for the retry pause, refresh is not available yet",
   },
   history: {
     title: "Token history",
@@ -268,6 +275,12 @@ export const id: Messages = {
       unavailable: "Data resmi tidak tersedia",
       retrying: "Menghubungkan ulang…",
     },
+  },
+  refresh: {
+    ready: "Refresh sekarang",
+    running: "Sedang refresh…",
+    cooling: "Baru saja diperbarui, coba lagi dalam semenit",
+    blocked: "Menunggu jeda coba ulang, refresh belum bisa",
   },
   history: {
     title: "Riwayat token",

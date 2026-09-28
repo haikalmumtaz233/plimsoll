@@ -97,6 +97,13 @@ export interface AlertView {
   body: string;
 }
 
+export type RefreshState = "ready" | "running" | "cooling" | "blocked";
+
+export interface RefreshView {
+  state: RefreshState;
+  readyAt: number | null;
+}
+
 export interface UsageView {
   accurateMode: boolean;
   status: OAuthStatus;
@@ -109,12 +116,17 @@ export interface UsageView {
   history: HistoryView;
   breakdown: BreakdownsView;
   autostart: boolean;
+  refresh: RefreshView;
   generatedAt: number;
   officialUpdatedAt: number | null;
 }
 
 export function loadUsage(): Promise<UsageView> {
   return invoke<UsageView>("usage_summary");
+}
+
+export function refreshNow(): Promise<UsageView> {
+  return invoke<UsageView>("refresh_now");
 }
 
 export function setAccurateMode(enabled: boolean): Promise<UsageView> {

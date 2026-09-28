@@ -11,6 +11,7 @@
     loadUsage,
     onUsageAlert,
     onUsageUpdated,
+    refreshNow,
     saveManualPercent,
     savePreferences,
     setAccurateMode,
@@ -29,6 +30,7 @@
     updatedText,
   } from "./lib/usage/format";
   import { type HistoryRange } from "./lib/usage/history";
+  import { effectiveRefresh, refreshLabel } from "./lib/usage/refresh";
   import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
 
   let version = $state<string | undefined>(undefined);
@@ -38,6 +40,27 @@
   let range = $state<HistoryRange>("day");
   let settingsOpen = $state(false);
   let announcement = $state("");
+  let clock = $state(Date.now());
+
+  const refreshState = $derived(
+    view === undefined ? "blocked" : effectiveRefresh(view.refresh, clock),
+  );
+
+  $effect(() => {
+    const readyAt = view?.refresh.readyAt ?? null;
+    if (readyAt === null) {
+      return;
+    }
+    const timer = setTimeout(
+      () => {
+        clock = Date.now();
+      },
+      Math.max(0, readyAt - Date.now()),
+    );
+    return () => {
+      clearTimeout(timer);
+    };
+  });
 
   const locale: Locale = $derived(
     view?.preferences.resolvedLanguage ?? localeFromTag(navigator.language),
@@ -119,6 +142,17 @@
     } catch {
       toggleError = messages.app.accurateModeFailed;
       return false;
+    }
+  }
+
+  async function refresh() {
+    if (refreshState !== "ready") {
+      return;
+    }
+    try {
+      accept(await refreshNow());
+    } catch {
+      clock = Date.now();
     }
   }
 
@@ -208,24 +242,49 @@
     {@const updated = showingLimits
       ? updatedText(view.officialUpdatedAt, view.generatedAt, messages)
       : null}
-    <p
-      class="status {statusTone(view.accurateMode, view.status, showingLimits)}"
-      role="status"
-      title={syncing ? messages.status.syncing : undefined}
-    >
-      <span class="dot" aria-hidden="true"></span>
-      {statusMessage(view.accurateMode, view.status, showingLimits, messages)}
-      {#if updated !== null}
-        <span class="age">· {updated}</span>
+    <div class="status-row">
+      <p
+        class="status {statusTone(view.accurateMode, view.status, showingLimits)}"
+        role="status"
+        title={syncing ? messages.status.syncing : undefined}
+      >
+        <span class="dot" aria-hidden="true"></span>
+        {statusMessage(view.accurateMode, view.status, showingLimits, messages)}
+        {#if updated !== null}
+          <span class="age">· {updated}</span>
+        {/if}
+        {#if syncing}
+          <svg class="sync" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5" />
+            <path d="M11.5 1.5v3h-3M4.5 14.5v-3h3" />
+          </svg>
+          <span class="visually-hidden">{messages.status.syncing}</span>
+        {/if}
+      </p>
+      {#if view.accurateMode}
+        {@const label = refreshLabel(refreshState, messages)}
+        <button
+          type="button"
+          class="refresh"
+          aria-label={label}
+          title={label}
+          aria-disabled={refreshState !== "ready"}
+          aria-busy={refreshState === "running"}
+          onclick={refresh}
+        >
+          <svg
+            class="sync refresh-icon"
+            class:spinning={refreshState === "running"}
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5" />
+            <path d="M11.5 1.5v3h-3M4.5 14.5v-3h3" />
+          </svg>
+        </button>
       {/if}
-      {#if syncing}
-        <svg class="sync" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <path d="M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5" />
-          <path d="M11.5 1.5v3h-3M4.5 14.5v-3h3" />
-        </svg>
-        <span class="visually-hidden">{messages.status.syncing}</span>
-      {/if}
-    </p>
+    </div>
     {#if view.limits.length > 0}
       {#each view.limits as limit (limit.kind)}
         <LimitCard
@@ -318,6 +377,49 @@
     font-size: 0.8125rem;
     border: 0.0625rem solid var(--color-border);
     border-radius: var(--radius-pill);
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .refresh {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    color: var(--color-text);
+    background: transparent;
+    border: 0.0625rem solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+  }
+
+  .refresh[aria-disabled="true"] {
+    color: var(--color-text-muted);
+    cursor: default;
+  }
+
+  .refresh-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .spinning {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .dot {
