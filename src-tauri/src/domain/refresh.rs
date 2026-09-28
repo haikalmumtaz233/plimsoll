@@ -49,6 +49,11 @@ pub fn cli_fallback_due(state: FallbackState, now: Timestamp) -> bool {
 }
 
 #[must_use]
+pub fn fallback_is_recent(last_success: Option<Timestamp>, now: Timestamp) -> bool {
+    last_success.is_some_and(|at| now - at <= CLI_FALLBACK_SPACING + STALE_GRACE)
+}
+
+#[must_use]
 pub fn is_outdated(healthy: bool, official_age: Span, expected_delay: Span) -> bool {
     !healthy || official_age > expected_delay + STALE_GRACE
 }
@@ -241,6 +246,23 @@ mod tests {
             NOW
         ));
         assert!(cli_fallback_due(fallback(1, true, None), NOW));
+    }
+
+    #[test]
+    fn a_fallback_reading_counts_as_fresh_until_the_next_run_is_overdue() {
+        assert!(!super::fallback_is_recent(None, NOW));
+        assert!(super::fallback_is_recent(
+            Some(NOW - Span::minutes(14)),
+            NOW
+        ));
+        assert!(super::fallback_is_recent(
+            Some(NOW - Span::minutes(15)),
+            NOW
+        ));
+        assert!(!super::fallback_is_recent(
+            Some(NOW - Span::minutes(16)),
+            NOW
+        ));
     }
 
     #[test]
