@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0-rc.1] - 2026-09-28
+
 ### Changed
 
 - The popup shows less text: a small status badge replaces the status sentence, estimates read as "≈ 42% of limit", and reset countdowns sit beside each card title.
