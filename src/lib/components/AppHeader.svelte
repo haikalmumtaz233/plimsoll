@@ -4,11 +4,12 @@
   interface Props {
     messages: Messages;
     versionLabel: string;
+    planLabel: string | null;
     settingsOpen: boolean;
     ontogglesettings: () => void;
   }
 
-  let { messages, versionLabel, settingsOpen, ontogglesettings }: Props = $props();
+  let { messages, versionLabel, planLabel, settingsOpen, ontogglesettings }: Props = $props();
 
   const toggleLabel = $derived(settingsOpen ? messages.app.back : messages.app.settings);
 </script>
@@ -18,6 +19,12 @@
     <h1 class="title">Plimsoll</h1>
     {#if versionLabel !== ""}
       <span class="version">{versionLabel}</span>
+    {/if}
+    {#if planLabel !== null}
+      <span class="plan" title={messages.app.plan(planLabel)}>
+        <span aria-hidden="true">{planLabel}</span>
+        <span class="visually-hidden">{messages.app.plan(planLabel)}</span>
+      </span>
     {/if}
   </div>
   <button
@@ -89,5 +96,23 @@
   .version {
     font-size: 0.875rem;
     color: var(--color-text-muted);
+  }
+
+  .plan {
+    padding: 0 var(--space-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text);
+    border: 0.0625rem solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 </style>

@@ -14,6 +14,7 @@ export interface Messages {
     dismiss: string;
     settings: string;
     back: string;
+    plan: (label: string) => string;
   };
   limits: {
     title: Record<LimitKind, string>;
@@ -116,6 +117,7 @@ export const en: Messages = {
     dismiss: "Dismiss",
     settings: "Settings",
     back: "Back",
+    plan: (label) => `Claude ${label} plan`,
   },
   limits: {
     title: { five_hour: "5-hour limit", seven_day: "Weekly limit" },
@@ -232,6 +234,7 @@ export const id: Messages = {
     dismiss: "Tutup",
     settings: "Pengaturan",
     back: "Kembali",
+    plan: (label) => `Paket Claude ${label}`,
   },
   limits: {
     title: { five_hour: "Limit 5 jam", seven_day: "Limit mingguan" },

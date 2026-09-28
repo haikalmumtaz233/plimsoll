@@ -117,6 +117,7 @@ export interface UsageView {
   breakdown: BreakdownsView;
   autostart: boolean;
   refresh: RefreshView;
+  plan: string | null;
   generatedAt: number;
   officialUpdatedAt: number | null;
 }
