@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize, Serializer};
 use tauri::{AppHandle, Runtime};
 use thiserror::Error;
 
-use crate::app::runtime;
 use crate::app::view::UsageView;
+use crate::app::{browser, runtime};
 use crate::diagnostics;
 use crate::domain::limit::{LimitKind, Utilization};
 use crate::domain::preferences::{LanguageChoice, PollInterval, Preferences};
@@ -26,6 +26,8 @@ pub enum CommandError {
     Popup,
     #[error("the claude code login could not be opened")]
     Login,
+    #[error("the usage page could not be opened")]
+    Browser,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -95,6 +97,17 @@ pub fn refresh_now<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, CommandEr
 #[allow(clippy::needless_pass_by_value)]
 pub fn open_login<R: Runtime>(app: AppHandle<R>) -> Result<UsageView, CommandError> {
     runtime::open_login(&app).ok_or(CommandError::Login)
+}
+
+#[tauri::command(async)]
+pub fn open_usage_page() -> Result<(), CommandError> {
+    browser::open_usage_page().map_err(|error| {
+        diagnostics::error(
+            "browser",
+            &format!("failed to open the usage page: {error}"),
+        );
+        CommandError::Browser
+    })
 }
 
 #[tauri::command(async)]

@@ -1,3 +1,4 @@
+pub mod browser;
 pub mod clock;
 pub mod engine;
 pub mod locale;
@@ -34,6 +35,7 @@ pub fn run() -> Result<(), AppError> {
             commands::refresh_now,
             commands::open_login,
             commands::set_cli_fallback,
+            commands::open_usage_page,
             commands::set_accurate_mode,
             commands::set_preferences,
             commands::set_manual_percent,

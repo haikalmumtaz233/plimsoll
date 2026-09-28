@@ -3,6 +3,7 @@ const COMMANDS: &[&str] = &[
     "refresh_now",
     "open_login",
     "set_cli_fallback",
+    "open_usage_page",
     "set_accurate_mode",
     "set_preferences",
     "set_manual_percent",
