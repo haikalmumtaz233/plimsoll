@@ -15,8 +15,14 @@ const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
 pub enum CliError {
     #[error("claude code was not found on this pc")]
     NotFound,
-    #[error("failed to start claude code: {0}")]
+    #[error("failed to run claude code: {0}")]
     Spawn(#[from] io::Error),
+    #[error("claude code did not answer within the time limit")]
+    TimedOut,
+    #[error("claude code exited with code {0:?}")]
+    Failed(Option<i32>),
+    #[error("claude code printed no output")]
+    NoOutput,
 }
 
 #[must_use]
