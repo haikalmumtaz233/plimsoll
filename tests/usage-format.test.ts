@@ -7,6 +7,7 @@ import {
   formatCountdown,
   formatPercent,
   formatTokens,
+  isSyncing,
   limitTitle,
   resetText,
   statusMessage,
@@ -70,27 +71,45 @@ describe("limitTitle", () => {
 
 describe("statusMessage", () => {
   it("labels local estimates when accurate mode is off", () => {
-    expect(statusMessage(false, "disabled", en)).toBe("Local estimate");
-    expect(statusMessage(false, "active", en)).toBe("Local estimate");
+    expect(statusMessage(false, "disabled", false, en)).toBe("Local estimate");
+    expect(statusMessage(false, "active", true, en)).toBe("Local estimate");
   });
 
-  it("labels official data when active", () => {
-    expect(statusMessage(true, "active", en)).toBe("Official");
+  it("labels official data when active or still shown", () => {
+    expect(statusMessage(true, "active", true, en)).toBe("Official");
+    expect(statusMessage(true, "retrying", true, en)).toBe("Official");
+    expect(statusMessage(true, "pending", true, en)).toBe("Official");
   });
 
-  it("names the fallback reason briefly", () => {
-    expect(statusMessage(true, "token_expired", en)).toBe("Sign-in expired, open Claude Code");
-    expect(statusMessage(true, "retrying", en)).toBe("Reconnecting…");
+  it("names the reason once no official reading is shown", () => {
+    expect(statusMessage(true, "token_expired", false, en)).toBe(
+      "Sign-in expired, open Claude Code",
+    );
+    expect(statusMessage(true, "retrying", false, en)).toBe("Reconnecting…");
   });
 });
 
 describe("statusTone", () => {
-  it("separates official, local and attention states", () => {
-    expect(statusTone(true, "active")).toBe("official");
-    expect(statusTone(false, "active")).toBe("local");
-    expect(statusTone(true, "disabled")).toBe("local");
-    expect(statusTone(true, "retrying")).toBe("attention");
-    expect(statusTone(true, "signed_out")).toBe("attention");
+  it("stays official while the last reading is shown", () => {
+    expect(statusTone(true, "active", true)).toBe("official");
+    expect(statusTone(true, "retrying", true)).toBe("official");
+    expect(statusTone(true, "retrying", false)).toBe("attention");
+    expect(statusTone(true, "signed_out", false)).toBe("attention");
+  });
+
+  it("marks local estimates", () => {
+    expect(statusTone(false, "active", true)).toBe("local");
+    expect(statusTone(true, "disabled", false)).toBe("local");
+  });
+});
+
+describe("isSyncing", () => {
+  it("is true only while an official reading is shown during a failed refresh", () => {
+    expect(isSyncing(true, "retrying", true)).toBe(true);
+    expect(isSyncing(true, "pending", true)).toBe(true);
+    expect(isSyncing(true, "active", true)).toBe(false);
+    expect(isSyncing(true, "retrying", false)).toBe(false);
+    expect(isSyncing(false, "retrying", true)).toBe(false);
   });
 });
 
@@ -113,7 +132,7 @@ describe("indonesian formatting", () => {
     expect(formatCountdown(2 * HOUR + 15 * MINUTE, id)).toBe("2 jam 15 menit");
     expect(resetText(10 * HOUR, 8 * HOUR, id)).toBe("Reset dalam 2 jam 0 menit");
     expect(limitTitle("seven_day", id)).toBe("Limit mingguan");
-    expect(statusMessage(true, "retrying", id)).toBe("Menghubungkan ulang…");
+    expect(statusMessage(true, "retrying", false, id)).toBe("Menghubungkan ulang…");
   });
 });
 

@@ -46,25 +46,38 @@ export function limitTitle(kind: LimitKind, messages: Messages): string {
 
 export type StatusTone = "official" | "local" | "attention";
 
-export function statusTone(accurateMode: boolean, status: OAuthStatus): StatusTone {
+export function statusTone(
+  accurateMode: boolean,
+  status: OAuthStatus,
+  showingLimits: boolean,
+): StatusTone {
   if (!accurateMode || status === "disabled") {
     return "local";
   }
-  return status === "active" ? "official" : "attention";
+  return status === "active" || showingLimits ? "official" : "attention";
 }
 
 export function statusMessage(
   accurateMode: boolean,
   status: OAuthStatus,
+  showingLimits: boolean,
   messages: Messages,
 ): string {
   if (!accurateMode || status === "disabled") {
     return messages.status.estimate;
   }
-  if (status === "active") {
+  if (status === "active" || showingLimits) {
     return messages.status.active;
   }
   return messages.status.reasons[status];
+}
+
+export function isSyncing(
+  accurateMode: boolean,
+  status: OAuthStatus,
+  showingLimits: boolean,
+): boolean {
+  return accurateMode && showingLimits && status !== "active" && status !== "disabled";
 }
 
 export function alertText(alert: AlertView): string {
