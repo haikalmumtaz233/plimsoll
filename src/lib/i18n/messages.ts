@@ -28,8 +28,8 @@ export interface Messages {
     daysHours: (days: number, hours: number) => string;
   };
   tokens: (formatted: string, count: number) => string;
-  estimate: (percent: string, samples: number) => string;
-  manualEstimate: (percent: string, entered: string, age: string) => string;
+  estimate: (percent: string) => string;
+  manualEstimate: (percent: string) => string;
   manual: {
     title: string;
     help: string;
@@ -130,10 +130,8 @@ export const en: Messages = {
     daysHours: (days, hours) => `${String(days)}d ${String(hours)}h`,
   },
   tokens: (formatted, count) => `${formatted} ${count === 1 ? "token" : "tokens"}`,
-  estimate: (percent, samples) =>
-    `About ${percent} of the limit, estimated from ${String(samples)} past windows`,
-  manualEstimate: (percent, entered, age) =>
-    `About ${percent} of the limit, based on your entry of ${entered} ${age} ago`,
+  estimate: (percent) => `≈ ${percent} of limit`,
+  manualEstimate: (percent) => `≈ ${percent} of limit · manual`,
   manual: {
     title: "Manual percentage",
     help: "When official data is unavailable, enter the percentage shown by /usage in Claude Code or on claude.ai. It is used until that limit could have reset.",
@@ -247,10 +245,8 @@ export const id: Messages = {
     daysHours: (days, hours) => `${String(days)} hari ${String(hours)} jam`,
   },
   tokens: (formatted) => `${formatted} token`,
-  estimate: (percent, samples) =>
-    `Sekitar ${percent} dari limit, estimasi dari ${String(samples)} jendela sebelumnya`,
-  manualEstimate: (percent, entered, age) =>
-    `Sekitar ${percent} dari limit, dari isian manual ${entered} ${age} lalu`,
+  estimate: (percent) => `≈ ${percent} dari limit`,
+  manualEstimate: (percent) => `≈ ${percent} dari limit · manual`,
   manual: {
     title: "Persentase manual",
     help: "Saat data resmi tidak tersedia, isi persentase yang ditampilkan /usage di Claude Code atau di claude.ai. Nilainya dipakai sampai limit tersebut mungkin sudah reset.",

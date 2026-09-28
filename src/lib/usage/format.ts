@@ -78,13 +78,9 @@ export function estimateFor(
   return estimates.find((estimate) => estimate.kind === kind);
 }
 
-export function estimateText(estimate: EstimateView, now: number, messages: Messages): string {
-  if (estimate.source === "manual") {
-    return messages.manualEstimate(
-      formatPercent(estimate.percent),
-      formatPercent(estimate.enteredPercent ?? estimate.percent),
-      formatCountdown(now - (estimate.enteredAt ?? now), messages),
-    );
-  }
-  return messages.estimate(formatPercent(estimate.percent), estimate.samples);
+export function estimateText(estimate: EstimateView, messages: Messages): string {
+  const percent = formatPercent(estimate.percent);
+  return estimate.source === "manual"
+    ? messages.manualEstimate(percent)
+    : messages.estimate(percent);
 }
