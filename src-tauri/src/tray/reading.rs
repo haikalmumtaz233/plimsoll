@@ -1,6 +1,6 @@
 use super::palette::Tone;
 use crate::domain::clock::Timestamp;
-use crate::domain::limit::LimitSnapshot;
+use crate::domain::limit::{LimitKind, LimitSnapshot};
 use crate::domain::severity::{Severity, Thresholds};
 use crate::domain::summary::UsageSummary;
 use crate::i18n::Text;
@@ -39,7 +39,7 @@ impl TrayReading {
         match self {
             Self::Idle => IDLE_LABEL.to_owned(),
             Self::Tokens(count) => compact_tokens(*count),
-            Self::Limits(limits) => binding_limit(limits).map_or_else(
+            Self::Limits(limits) => displayed_limit(limits).map_or_else(
                 || IDLE_LABEL.to_owned(),
                 |limit| whole_percent(limit.utilization.percent()),
             ),
@@ -49,7 +49,7 @@ impl TrayReading {
     #[must_use]
     pub fn tone(&self, thresholds: Thresholds) -> Tone {
         match self {
-            Self::Limits(limits) => binding_limit(limits).map_or(Tone::Neutral, |limit| {
+            Self::Limits(limits) => displayed_limit(limits).map_or(Tone::Neutral, |limit| {
                 Tone::Severity(Severity::of(limit.utilization, thresholds))
             }),
             Self::Idle | Self::Tokens(_) => Tone::Neutral,
@@ -92,7 +92,14 @@ impl TrayReading {
     }
 }
 
-fn binding_limit(limits: &[LimitSnapshot]) -> Option<&LimitSnapshot> {
+fn displayed_limit(limits: &[LimitSnapshot]) -> Option<&LimitSnapshot> {
+    limits
+        .iter()
+        .find(|limit| limit.kind == LimitKind::FiveHour)
+        .or_else(|| most_used(limits))
+}
+
+fn most_used(limits: &[LimitSnapshot]) -> Option<&LimitSnapshot> {
     limits.iter().max_by(|first, second| {
         first
             .utilization
@@ -227,9 +234,22 @@ mod tests {
     }
 
     #[test]
-    fn the_most_used_limit_drives_the_icon() {
+    fn the_five_hour_limit_drives_the_icon() {
         let reading = TrayReading::Limits(vec![
+            limit(LimitKind::SevenDay, 96.2, None),
             limit(LimitKind::FiveHour, 12.9, None),
+        ]);
+        assert_eq!(reading.label(), "12");
+        assert_eq!(
+            reading.tone(Thresholds::DEFAULT),
+            Tone::Severity(Severity::Normal)
+        );
+    }
+
+    #[test]
+    fn without_a_five_hour_limit_the_most_used_one_drives_the_icon() {
+        let reading = TrayReading::Limits(vec![
+            limit(LimitKind::SevenDay, 41.0, None),
             limit(LimitKind::SevenDay, 96.2, None),
         ]);
         assert_eq!(reading.label(), "96");
