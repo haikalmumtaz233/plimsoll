@@ -3,6 +3,7 @@ name = "plimsoll"
 version = "0.7.0-rc.1"
 description = "A tiny Windows tray app for Claude plan limits"
 authors = ["Haikal Mumtaz"]
+license = "MIT"
 edition = "2024"
 rust-version = "1.90"
 publish = false
