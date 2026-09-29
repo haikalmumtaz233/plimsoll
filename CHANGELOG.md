@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Drag the popup by its header to move it. It opens beside the tray icon again next time.
 - Plimsoll is released under the MIT License.
 
 ## [0.7.0-rc.1] - 2026-09-28
