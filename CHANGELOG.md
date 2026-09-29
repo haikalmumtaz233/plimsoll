@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Drag the popup by its header to move it. It opens beside the tray icon again next time.
 - Plimsoll is released under the MIT License.
 
+### Changed
+
+- The tray icon shows the five-hour limit, and its color follows that limit. The weekly limit stays in the tooltip and the popup, and still sends its alerts.
+
 ## [0.7.0-rc.1] - 2026-09-28
 
 ### Added
