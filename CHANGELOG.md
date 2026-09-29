@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.0-rc.1] - 2026-09-29
+
 ### Added
 
 - Drag the popup by its header to move it. It opens beside the tray icon again next time.
@@ -115,7 +117,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Opt-in accurate mode that reads the Claude Code sign-in on this PC to fetch official percentages, falling back to local estimates when it is unavailable.
 - Tray icon drawn as a sharp badge at 100 to 300 percent display scaling: the most used limit in percent, colored at 50, 80 and 95 percent, or tokens used when accurate mode is off. The tooltip lists each limit with its reset countdown.
 
-[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.7.0-rc.1...HEAD
+[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.8.0-rc.1...HEAD
+[0.8.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.7.0-rc.1...v0.8.0-rc.1
 [0.7.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.6.0-rc.2...v0.7.0-rc.1
 [0.6.0-rc.2]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.6.0-rc.1...v0.6.0-rc.2
 [0.6.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.5.0-rc.1...v0.6.0-rc.1
