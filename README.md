@@ -23,4 +23,4 @@ In active development. Not ready for general use yet.
 
 ## License
 
-To be announced.
+Released under the [MIT License](LICENSE).
