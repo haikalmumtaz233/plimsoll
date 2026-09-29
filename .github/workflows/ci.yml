@@ -47,8 +47,46 @@ jobs:
       - name: Audit
         run: pnpm audit
 
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.detect.outputs.rust }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect Rust changes
+        id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          RUST_PATHS: ^(src-tauri/|\.github/workflows/ci\.yml$)
+        run: |
+          set -eu
+          rust=true
+          if [ "$EVENT" = "push" ]; then
+            if [ "$REF" = "refs/heads/main" ]; then
+              base="$BEFORE"
+            else
+              base="$(git merge-base origin/main HEAD || true)"
+            fi
+            if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+              changed="$(git diff --name-only "$base" HEAD)"
+              if ! grep -qE "$RUST_PATHS" <<< "$changed"; then
+                rust=false
+              fi
+            fi
+          fi
+          echo "rust=$rust" >> "$GITHUB_OUTPUT"
+
   rust:
     name: Rust
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
