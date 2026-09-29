@@ -1,6 +1,8 @@
-# Claude Limit Tracker
+# Plimsoll
 
 A lightweight Windows tray app that shows how much of your Claude plan limit you have used, when it resets, and warns you before you run out.
+
+Named after the Plimsoll line, the mark on a ship's hull that shows how far it can safely be loaded.
 
 > Unofficial. Not affiliated with or endorsed by Anthropic.
 
