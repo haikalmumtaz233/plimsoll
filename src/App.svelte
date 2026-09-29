@@ -6,7 +6,7 @@
   import TokenCard from "./lib/components/TokenCard.svelte";
   import UsageBreakdown from "./lib/components/UsageBreakdown.svelte";
   import UsageChart from "./lib/components/UsageChart.svelte";
-  import { hidePopup, openUsagePage, readAppVersion } from "./lib/api/app";
+  import { hidePopup, openUsagePage, readAppVersion, startPopupDrag } from "./lib/api/app";
   import {
     loadUsage,
     onUsageAlert,
@@ -221,6 +221,9 @@
     {settingsOpen}
     ontogglesettings={() => {
       settingsOpen = !settingsOpen;
+    }}
+    onwindowdrag={() => {
+      void startPopupDrag();
     }}
   />
   <div class="announcement" class:active={announcement !== ""} role="alert">

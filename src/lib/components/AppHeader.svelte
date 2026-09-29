@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Messages } from "../i18n/messages";
+  import { dragHandle } from "../window/drag";
 
   interface Props {
     messages: Messages;
@@ -7,14 +8,16 @@
     planLabel: string | null;
     settingsOpen: boolean;
     ontogglesettings: () => void;
+    onwindowdrag: () => void;
   }
 
-  let { messages, versionLabel, planLabel, settingsOpen, ontogglesettings }: Props = $props();
+  let { messages, versionLabel, planLabel, settingsOpen, ontogglesettings, onwindowdrag }: Props =
+    $props();
 
   const toggleLabel = $derived(settingsOpen ? messages.app.back : messages.app.settings);
 </script>
 
-<header class="header">
+<header class="header" {@attach dragHandle(onwindowdrag)}>
   <div class="identity">
     <h1 class="title">Plimsoll</h1>
     {#if versionLabel !== ""}
@@ -85,6 +88,7 @@
     gap: var(--space-2);
     padding-bottom: var(--space-2);
     border-bottom: 0.0625rem solid var(--color-border);
+    user-select: none;
   }
 
   .title {
