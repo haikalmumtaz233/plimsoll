@@ -3,6 +3,7 @@
   "version": "0.7.0-rc.1",
   "private": true,
   "description": "A tiny Windows tray app for Claude plan limits",
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "engines": {
