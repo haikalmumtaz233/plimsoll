@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use auto_launch::{AutoLaunch, AutoLaunchBuilder};
+use auto_launch::{AutoLaunch, AutoLaunchBuilder, WindowsEnableMode};
 use thiserror::Error;
 
 #[cfg(windows)]
@@ -61,6 +61,7 @@ pub fn launcher(app_name: &str, executable: &Path) -> Result<AutoLaunch, Startup
     Ok(AutoLaunchBuilder::new()
         .set_app_name(app_name)
         .set_app_path(&quoted(executable))
+        .set_windows_enable_mode(WindowsEnableMode::CurrentUser)
         .build()?)
 }
 
@@ -101,6 +102,19 @@ mod tests {
         let launcher = launcher("Plimsoll", Path::new(INSTALLED)).expect("launcher");
         assert_eq!(launcher.get_app_name(), "Plimsoll");
         assert_eq!(launcher.get_app_path(), quoted(Path::new(INSTALLED)));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_launcher_registers_for_the_current_user_only() {
+        use auto_launch::{AutoLaunch, WindowsEnableMode};
+
+        let path = quoted(Path::new(INSTALLED));
+        let no_args: &[&str] = &[];
+        assert_eq!(
+            launcher("Plimsoll", Path::new(INSTALLED)).expect("launcher"),
+            AutoLaunch::new("Plimsoll", &path, WindowsEnableMode::CurrentUser, no_args)
+        );
     }
 
     #[test]
