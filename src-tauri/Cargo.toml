@@ -63,4 +63,4 @@ strip = true
 tokio = { version = "1", features = ["macros", "rt", "test-util"] }
 
 [target."cfg(windows)".dependencies]
-winreg = "0.55"
+winreg = "0.56"
