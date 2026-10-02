@@ -140,7 +140,7 @@ mod tests {
             read_line_bounded(&mut reader, &mut line, 4).expect("read"),
             LineRead::Oversized(9)
         );
-        assert!(line.is_empty());
+        assert_eq!(line, b"");
         assert_eq!(
             read_line_bounded(&mut reader, &mut line, 4).expect("read"),
             LineRead::Complete(3)

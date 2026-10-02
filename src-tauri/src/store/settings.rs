@@ -229,7 +229,8 @@ mod tests {
     #[test]
     fn manual_readings_can_be_set_and_cleared() {
         let database = Database::open_in_memory().expect("open");
-        assert!(database.manual_readings().expect("read").is_empty());
+        let readings = database.manual_readings().expect("read");
+        assert!(readings.is_empty(), "{readings:?}");
         let entered_at = Timestamp::from_unix_millis(1_790_300_000_000);
         let percent = Utilization::from_percent(42.5).expect("valid percent");
         database
@@ -246,17 +247,20 @@ mod tests {
         database
             .set_manual_reading(LimitKind::SevenDay, None)
             .expect("clear");
-        assert!(database.manual_readings().expect("read").is_empty());
+        let readings = database.manual_readings().expect("read");
+        assert!(readings.is_empty(), "{readings:?}");
         database
             .set_setting("manual.five_hour", "lots@soon")
             .expect("write");
-        assert!(database.manual_readings().expect("read").is_empty());
+        let readings = database.manual_readings().expect("read");
+        assert!(readings.is_empty(), "{readings:?}");
     }
 
     #[test]
     fn notified_alerts_round_trip_per_limit() {
         let database = Database::open_in_memory().expect("open");
-        assert!(database.notified_alerts().expect("read").is_empty());
+        let notified = database.notified_alerts().expect("read");
+        assert!(notified.is_empty(), "{notified:?}");
         let five_hour = Notified {
             kind: LimitKind::FiveHour,
             severity: Severity::High,

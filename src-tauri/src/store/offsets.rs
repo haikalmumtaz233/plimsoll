@@ -66,6 +66,7 @@ mod tests {
     #[test]
     fn empty_database_has_no_offsets() {
         let database = Database::open_in_memory().expect("open");
-        assert!(database.load_offsets().expect("load").is_empty());
+        let offsets = database.load_offsets().expect("load");
+        assert!(offsets.is_empty(), "{offsets:?}");
     }
 }

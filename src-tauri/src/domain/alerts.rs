@@ -104,7 +104,8 @@ mod tests {
 
     #[test]
     fn normal_usage_never_alerts() {
-        assert!(severities(&[limit(LimitKind::FiveHour, 49.9, Some(RESET))], &[]).is_empty());
+        let crossed = severities(&[limit(LimitKind::FiveHour, 49.9, Some(RESET))], &[]);
+        assert!(crossed.is_empty(), "{crossed:?}");
     }
 
     #[test]
@@ -115,7 +116,8 @@ mod tests {
             vec![(LimitKind::FiveHour, Severity::High)]
         );
         let seen = [notified(LimitKind::FiveHour, Severity::High, Some(RESET))];
-        assert!(severities(&limits, &seen).is_empty());
+        let crossed = severities(&limits, &seen);
+        assert!(crossed.is_empty(), "{crossed:?}");
     }
 
     #[test]
@@ -138,7 +140,8 @@ mod tests {
             Severity::High,
             Some(RESET + SAME_WINDOW_TOLERANCE),
         )];
-        assert!(severities(&[limit(LimitKind::FiveHour, 85.0, Some(RESET))], &seen).is_empty());
+        let crossed = severities(&[limit(LimitKind::FiveHour, 85.0, Some(RESET))], &seen);
+        assert!(crossed.is_empty(), "{crossed:?}");
     }
 
     #[test]

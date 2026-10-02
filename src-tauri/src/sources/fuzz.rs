@@ -162,9 +162,9 @@ fn jsonl_lines_never_panic_and_only_yield_complete_events() {
         let input = mutator.input(JSONL_SEEDS);
         if let Some(keyed) = line::parse(&input) {
             parsed += 1;
-            assert!(!keyed.event.model.is_empty());
+            assert_ne!(keyed.event.model, "");
             assert!(!keyed.event.model.starts_with('<'));
-            assert!(!keyed.event.project.is_empty());
+            assert_ne!(keyed.event.project, "");
             let millis = keyed.event.at.unix_millis();
             assert!((EARLIEST_RFC3339..=LATEST_RFC3339).contains(&millis));
         }
@@ -217,7 +217,7 @@ fn credentials_never_panic_and_never_yield_an_empty_token() {
         let input = mutator.input(CREDENTIAL_SEEDS);
         if let Ok(token) = parse_access_token(&input, NOW) {
             parsed += 1;
-            assert!(!token.secret().is_empty());
+            assert!(!token.secret().is_empty(), "parsed an empty token");
         }
     }
     assert!(parsed > 0);

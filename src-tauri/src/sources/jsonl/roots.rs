@@ -155,7 +155,8 @@ mod tests {
                 PathBuf::from(r"C:\Users\dev\.config\claude\projects"),
             ]
         );
-        assert!(fixed_candidates_from(lookup(&[])).is_empty());
+        let candidates = fixed_candidates_from(lookup(&[]));
+        assert!(candidates.is_empty(), "{candidates:?}");
     }
 
     #[test]
@@ -180,7 +181,8 @@ mod tests {
                 ),
             ]
         );
-        assert!(desktop_bases_from(lookup(&[]), &names).is_empty());
+        let bases = desktop_bases_from(lookup(&[]), &names);
+        assert!(bases.is_empty(), "{bases:?}");
     }
 
     #[test]
@@ -222,7 +224,8 @@ mod tests {
             fs::create_dir_all(directory).expect("create");
         }
         assert_eq!(nested_projects(&base), vec![shallow]);
-        assert!(nested_projects(&base.join("missing")).is_empty());
+        let projects = nested_projects(&base.join("missing"));
+        assert!(projects.is_empty(), "{projects:?}");
         fs::remove_dir_all(base).expect("cleanup");
     }
 }

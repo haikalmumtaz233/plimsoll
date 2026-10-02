@@ -346,7 +346,11 @@ mod tests {
         let report = engine.report(NOW).expect("report");
         assert!(!report.accurate_mode);
         assert_eq!(report.status, OAuthStatus::Disabled);
-        assert!(report.summary.limits.is_empty());
+        assert!(
+            report.summary.limits.is_empty(),
+            "{:?}",
+            report.summary.limits
+        );
         assert_eq!(report.summary.five_hour.tokens.output, 12);
         assert_eq!(report.summary.weekly.tokens.output, 12);
     }
@@ -358,7 +362,11 @@ mod tests {
             .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
             .expect("record");
         let report = engine.report(NOW).expect("report");
-        assert!(report.summary.limits.is_empty());
+        assert!(
+            report.summary.limits.is_empty(),
+            "{:?}",
+            report.summary.limits
+        );
         assert_eq!(report.status, OAuthStatus::Disabled);
     }
 
@@ -387,14 +395,8 @@ mod tests {
         assert_eq!(report.summary.limits, vec![five_hour(40.0)]);
 
         let later = NOW + STALE_AFTER + Span::from_millis(1);
-        assert!(
-            engine
-                .report(later)
-                .expect("report")
-                .summary
-                .limits
-                .is_empty()
-        );
+        let limits = engine.report(later).expect("report").summary.limits;
+        assert!(limits.is_empty(), "{limits:?}");
     }
 
     #[test]
@@ -408,7 +410,11 @@ mod tests {
         let report = engine.report(NOW).expect("report");
         assert!(!report.accurate_mode);
         assert_eq!(report.status, OAuthStatus::Disabled);
-        assert!(report.summary.limits.is_empty());
+        assert!(
+            report.summary.limits.is_empty(),
+            "{:?}",
+            report.summary.limits
+        );
     }
 
     #[test]
@@ -417,7 +423,8 @@ mod tests {
         engine
             .record_oauth(&Ok(vec![five_hour(85.0)]), NOW)
             .expect("record");
-        assert!(engine.take_alerts(NOW).expect("alerts").is_empty());
+        let alerts = engine.take_alerts(NOW).expect("alerts");
+        assert!(alerts.is_empty(), "{alerts:?}");
 
         engine.set_accurate_mode(true).expect("opt in");
         engine
@@ -426,7 +433,8 @@ mod tests {
         let alerts = engine.take_alerts(NOW).expect("alerts");
         assert_eq!(alerts.len(), 1);
         assert_eq!(alerts[0].severity, Severity::High);
-        assert!(engine.take_alerts(NOW).expect("alerts").is_empty());
+        let alerts = engine.take_alerts(NOW).expect("alerts");
+        assert!(alerts.is_empty(), "{alerts:?}");
 
         engine
             .record_oauth(&Ok(vec![five_hour(97.0)]), NOW)
@@ -461,7 +469,11 @@ mod tests {
 
         engine.set_accurate_mode(false).expect("opt out");
         let report = engine.report(NOW).expect("report");
-        assert!(report.summary.limits.is_empty());
+        assert!(
+            report.summary.limits.is_empty(),
+            "{:?}",
+            report.summary.limits
+        );
         assert_eq!(report.estimates.len(), 1);
         assert_eq!(report.estimates[0].kind, LimitKind::FiveHour);
         assert_eq!(report.estimates[0].basis, Basis::Calibrated { samples: 3 });
@@ -471,7 +483,8 @@ mod tests {
         engine
             .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
             .expect("record current");
-        assert!(engine.report(NOW).expect("report").estimates.is_empty());
+        let estimates = engine.report(NOW).expect("report").estimates;
+        assert!(estimates.is_empty(), "{estimates:?}");
     }
 
     #[test]
@@ -494,12 +507,14 @@ mod tests {
         assert_eq!(report.manual.len(), 1);
 
         let later = NOW + Span::hours(5);
-        assert!(engine.report(later).expect("report").estimates.is_empty());
+        let estimates = engine.report(later).expect("report").estimates;
+        assert!(estimates.is_empty(), "{estimates:?}");
 
         engine
             .set_manual_reading(LimitKind::FiveHour, None, NOW)
             .expect("clear");
-        assert!(engine.report(NOW).expect("report").estimates.is_empty());
+        let estimates = engine.report(NOW).expect("report").estimates;
+        assert!(estimates.is_empty(), "{estimates:?}");
     }
 
     #[test]
@@ -510,14 +525,8 @@ mod tests {
         engine
             .record_cli(&[five_hour(30.0)], NOW)
             .expect("still ignored");
-        assert!(
-            engine
-                .report(NOW)
-                .expect("report")
-                .summary
-                .limits
-                .is_empty()
-        );
+        let limits = engine.report(NOW).expect("report").summary.limits;
+        assert!(limits.is_empty(), "{limits:?}");
 
         engine.set_cli_fallback(true).expect("fallback");
         engine.record_cli(&[five_hour(30.0)], NOW).expect("record");
