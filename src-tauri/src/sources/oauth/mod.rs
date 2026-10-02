@@ -195,7 +195,8 @@ mod tests {
             source.fetch(NOW).await,
             Err(OAuthError::Credentials(CredentialsError::Missing))
         ));
-        assert!(source.transport.seen_tokens().is_empty());
+        let tokens = source.transport.seen_tokens();
+        assert!(tokens.is_empty(), "{tokens:?}");
     }
 
     #[test]

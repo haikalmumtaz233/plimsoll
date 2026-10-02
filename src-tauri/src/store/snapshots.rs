@@ -171,7 +171,8 @@ mod tests {
     #[test]
     fn empty_store_has_no_latest_snapshots() {
         let database = Database::open_in_memory().expect("open");
-        assert!(database.latest_snapshots().expect("query").is_empty());
+        let snapshots = database.latest_snapshots().expect("query");
+        assert!(snapshots.is_empty(), "{snapshots:?}");
     }
 
     #[test]

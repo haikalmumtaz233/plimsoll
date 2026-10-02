@@ -171,7 +171,8 @@ mod tests {
         assert_eq!(first[0].event.tokens.output, 10);
         assert_eq!(first[1].event.tokens.output, 20);
 
-        assert!(source.poll().expect("idle poll").is_empty());
+        let events = source.poll().expect("idle poll");
+        assert!(events.is_empty(), "{events:?}");
 
         append(
             &session,
@@ -223,7 +224,8 @@ mod tests {
     fn missing_root_yields_no_events() {
         let missing = PathBuf::from("Z:\\plimsoll-missing-root");
         let mut source = JsonlSource::new(vec![missing.clone()]);
-        assert!(source.poll().expect("poll").is_empty());
+        let events = source.poll().expect("poll");
+        assert!(events.is_empty(), "{events:?}");
         assert_eq!(source.roots(), [missing]);
     }
 

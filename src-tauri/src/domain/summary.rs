@@ -137,7 +137,7 @@ mod tests {
             summary.weekly.window,
             Some(weekly_containing(DEFAULT_WEEKLY_ANCHOR, NOW))
         );
-        assert!(summary.limits.is_empty());
+        assert!(summary.limits.is_empty(), "{:?}", summary.limits);
     }
 
     #[test]
