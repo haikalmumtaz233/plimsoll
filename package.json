@@ -1,6 +1,6 @@
 {
   "name": "plimsoll",
-  "version": "0.8.0-rc.1",
+  "version": "0.8.0-rc.2",
   "private": true,
   "description": "A tiny Windows tray app for Claude plan limits",
   "license": "MIT",
