@@ -59,7 +59,12 @@ pub fn is_outdated(healthy: bool, official_age: Span, expected_delay: Span) -> b
 }
 
 #[must_use]
-pub fn manual_refresh(healthy: bool, attempts: Attempts, now: Timestamp) -> ManualRefresh {
+pub const fn refresh_allowed(accurate_mode: bool, rate_limited: bool) -> bool {
+    accurate_mode && !rate_limited
+}
+
+#[must_use]
+pub fn manual_refresh(allowed: bool, attempts: Attempts, now: Timestamp) -> ManualRefresh {
     let answered = attempts
         .last
         .zip(attempts.requested)
@@ -70,7 +75,7 @@ pub fn manual_refresh(healthy: bool, attempts: Attempts, now: Timestamp) -> Manu
     if pending && !answered {
         return ManualRefresh::Running;
     }
-    if !healthy {
+    if !allowed {
         return ManualRefresh::Blocked;
     }
     match attempts.last {
@@ -119,7 +124,7 @@ mod tests {
         Activity, Attempts, CLI_FALLBACK_FAILURES, CLI_FALLBACK_SPACING, CODING_DELAY,
         FallbackState, IDLE_DELAY, LONG_IDLE_DELAY, MIN_SPACING, ManualRefresh, RECENT_DELAY,
         RUNNING_TIMEOUT, STALE_GRACE, WARM_DELAY, adaptive_delay, cli_fallback_due, is_outdated,
-        manual_refresh,
+        manual_refresh, refresh_allowed,
     };
     use crate::domain::clock::{Span, Timestamp};
 
@@ -187,9 +192,17 @@ mod tests {
     }
 
     #[test]
-    fn failing_or_pending_sources_keep_their_backoff() {
+    fn a_failing_source_can_refresh_unless_it_is_rate_limited() {
+        let failed = attempts(Some(Span::minutes(10)), None);
+        assert!(refresh_allowed(true, false));
         assert_eq!(
-            manual_refresh(false, attempts(Some(Span::minutes(10)), None), NOW),
+            manual_refresh(refresh_allowed(true, false), failed, NOW),
+            ManualRefresh::Ready
+        );
+        assert!(!refresh_allowed(true, true));
+        assert!(!refresh_allowed(false, false));
+        assert_eq!(
+            manual_refresh(refresh_allowed(true, true), failed, NOW),
             ManualRefresh::Blocked
         );
         assert_eq!(
