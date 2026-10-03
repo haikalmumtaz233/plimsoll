@@ -25,7 +25,7 @@ use crate::domain::plan::Plan;
 use crate::domain::preferences::{Language, Preferences};
 use crate::domain::refresh::{
     Activity, Attempts, FallbackState, MIN_SPACING, ManualRefresh, adaptive_delay,
-    cli_fallback_due, fallback_is_recent, is_outdated, manual_refresh,
+    cli_fallback_due, fallback_is_recent, is_outdated, manual_refresh, refresh_allowed,
 };
 use crate::error::AppError;
 use crate::i18n::Text;
@@ -58,6 +58,7 @@ struct SyncState {
     activity: Activity,
     attempts: Attempts,
     failures: u32,
+    rate_limited: bool,
     cli_last_run: Option<Timestamp>,
     cli_last_success: Option<Timestamp>,
 }
@@ -127,7 +128,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
 pub fn note_popup_opened<R: Runtime>(app: &AppHandle<R>) {
     let now = clock::now();
     update_sync(app, |state| state.activity.popup_opened_at = Some(now));
-    wake_if_stale(app, POPUP_FRESHNESS, now);
+    wake_if_stale(app, POPUP_FRESHNESS, now, true);
 }
 
 pub fn current_view<R: Runtime>(app: &AppHandle<R>) -> Option<UsageView> {
@@ -213,11 +214,12 @@ fn view_of<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> U
 }
 
 fn manual_state<R: Runtime>(app: &AppHandle<R>, now: Timestamp) -> ManualRefresh {
-    let healthy = with_engine(app, |engine| {
-        Ok(engine.accurate_mode()? && engine.status() == OAuthStatus::Active)
+    let sync = sync_state(app);
+    let allowed = with_engine(app, |engine| {
+        Ok(refresh_allowed(engine.accurate_mode()?, sync.rate_limited))
     })
     .unwrap_or(false);
-    manual_refresh(healthy, sync_state(app).attempts, now)
+    manual_refresh(allowed, sync.attempts, now)
 }
 
 pub fn set_accurate_mode<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<UsageView> {
@@ -479,13 +481,19 @@ fn note_coding<R: Runtime>(app: &AppHandle<R>, latest: Timestamp) {
         return;
     }
     update_sync(app, |state| state.activity.coding_at = Some(latest));
-    wake_if_stale(app, CODING_FRESHNESS, now);
+    wake_if_stale(app, CODING_FRESHNESS, now, false);
 }
 
-fn wake_if_stale<R: Runtime>(app: &AppHandle<R>, freshness: Span, now: Timestamp) {
+fn wake_if_stale<R: Runtime>(
+    app: &AppHandle<R>,
+    freshness: Span,
+    now: Timestamp,
+    while_failing: bool,
+) {
     let stale = with_engine(app, |engine| {
         let last = engine.last_official_at()?;
-        Ok(last.is_none_or(|at| now - at > freshness))
+        let wanted = while_failing || engine.status() == OAuthStatus::Active;
+        Ok(wanted && last.is_none_or(|at| now - at > freshness))
     });
     if stale == Some(true)
         && manual_state(app, now) == ManualRefresh::Ready
@@ -518,6 +526,7 @@ fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
         } else {
             state.failures.saturating_add(1)
         };
+        state.rate_limited = matches!(result, Err(OAuthError::RateLimited { .. }));
     });
     let previous = with_engine(app, |engine| Ok(engine.status()));
     log_oauth(previous, result);
