@@ -30,7 +30,7 @@ pub async fn run<T, N, C, J, F>(
     loop {
         let result = source.fetch(now()).await;
         schedule.set_base(cadence());
-        let failed = result.is_err();
+        let rate_limited = matches!(result, Err(OAuthError::RateLimited { .. }));
         let delay = match &result {
             Ok(_) => schedule.after_success(jitter()),
             Err(error) => schedule.after_failure(error.retry_after(), jitter()),
@@ -38,12 +38,12 @@ pub async fn run<T, N, C, J, F>(
         if on_result(result).is_break() {
             return;
         }
-        pause(delay, failed, wake).await;
+        pause(delay, rate_limited, wake).await;
     }
 }
 
-async fn pause(delay: Duration, failed: bool, wake: &Notify) {
-    if failed {
+async fn pause(delay: Duration, rate_limited: bool, wake: &Notify) {
+    if rate_limited {
         tokio::time::sleep(delay).await;
         return;
     }
@@ -154,10 +154,47 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a_wake_up_never_cuts_a_failure_backoff_short() {
-        let path = credentials_file("wake-backoff");
+    async fn a_wake_up_retries_a_failure_after_the_minimum_interval() {
+        let path = credentials_file("wake-failure");
         let source = OAuthUsageSource::new(
-            FakeTransport::replying(vec![reply(500, ""), reply(200, USAGE)]),
+            FakeTransport::replying(vec![reply(403, ""), reply(500, ""), reply(200, USAGE)]),
+            path.clone(),
+        );
+        let wake = Notify::new();
+        wake.notify_one();
+        let started = Instant::now();
+        let mut polls = Vec::new();
+        run(
+            &source,
+            PollSchedule::new(Duration::from_secs(30 * 60)),
+            || Timestamp::from_unix_millis(0),
+            || Duration::from_secs(30 * 60),
+            || Jitter::NONE,
+            &wake,
+            |result| {
+                polls.push((started.elapsed().as_secs(), result.is_ok()));
+                if polls.len() == 3 {
+                    ControlFlow::Break(())
+                } else {
+                    ControlFlow::Continue(())
+                }
+            },
+        )
+        .await;
+        assert_eq!(polls, vec![(0, false), (60, false), (300, true)]);
+        fs::remove_file(path).expect("cleanup");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_wake_up_never_cuts_a_rate_limit_pause_short() {
+        let path = credentials_file("wake-backoff");
+        let limited = Reply {
+            status: 429,
+            retry_after: Some(Duration::from_secs(600)),
+            body: Vec::new(),
+        };
+        let source = OAuthUsageSource::new(
+            FakeTransport::replying(vec![limited, reply(200, USAGE)]),
             path.clone(),
         );
         let wake = Notify::new();
@@ -181,7 +218,7 @@ mod tests {
             },
         )
         .await;
-        assert_eq!(polls, vec![(0, false), (120, true)]);
+        assert_eq!(polls, vec![(0, false), (600, true)]);
         fs::remove_file(path).expect("cleanup");
     }
 }
