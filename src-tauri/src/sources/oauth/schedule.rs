@@ -69,7 +69,7 @@ impl PollSchedule {
     pub fn after_failure(&mut self, retry_after: Option<Duration>, jitter: Jitter) -> Duration {
         self.failures = self.failures.saturating_add(1);
         let doublings = self.failures.min(MAX_DOUBLINGS);
-        let backoff = (self.base * (1 << doublings)).min(MAX_BACKOFF.max(self.base));
+        let backoff = (MIN_INTERVAL * (1 << doublings)).min(MAX_BACKOFF);
         let requested = retry_after.map_or(Duration::ZERO, |wait| wait.min(MAX_RETRY_AFTER));
         jitter.apply(backoff.max(requested))
     }
@@ -85,13 +85,17 @@ mod tests {
     }
 
     #[test]
-    fn a_longer_base_interval_stretches_success_and_backoff() {
+    fn a_longer_base_interval_stretches_success_but_not_the_failure_backoff() {
         let mut schedule = PollSchedule::new(Duration::from_secs(300));
         assert_eq!(secs(schedule.after_success(Jitter::NONE)), 300);
-        assert_eq!(secs(schedule.after_failure(None, Jitter::NONE)), 600);
-        assert_eq!(schedule.after_failure(None, Jitter::NONE), MAX_BACKOFF);
-        let mut slow = PollSchedule::new(Duration::from_secs(600));
-        assert_eq!(slow.after_failure(None, Jitter::NONE), MAX_BACKOFF);
+        assert_eq!(secs(schedule.after_failure(None, Jitter::NONE)), 120);
+        assert_eq!(secs(schedule.after_failure(None, Jitter::NONE)), 240);
+        let mut idle = PollSchedule::new(Duration::from_secs(30 * 60));
+        assert_eq!(secs(idle.after_failure(None, Jitter::NONE)), 120);
+        let delays: Vec<u64> = (0..5)
+            .map(|_| secs(idle.after_failure(None, Jitter::NONE)))
+            .collect();
+        assert_eq!(delays, vec![240, 480, 900, 900, 900]);
     }
 
     #[test]
