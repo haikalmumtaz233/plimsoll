@@ -56,6 +56,7 @@ impl HttpsTransport {
             .tls_version_min(reqwest::tls::Version::TLS_1_2)
             .connect_timeout(CONNECT_TIMEOUT)
             .timeout(REQUEST_TIMEOUT)
+            .pool_max_idle_per_host(0)
             .user_agent(USER_AGENT)
             .build()?;
         Ok(Self { client })
