@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Install with one PowerShell command: `irm https://github.com/haikalmumtaz233/plimsoll/releases/latest/download/install.ps1 | iex`. It picks the x64 or ARM64 installer, verifies its checksum, and installs for the current user without admin rights.
+- Each release includes a `SHA256SUMS` file for its installers.
+
 ## [0.8.0-rc.2] - 2026-10-03
 
 ### Changed
