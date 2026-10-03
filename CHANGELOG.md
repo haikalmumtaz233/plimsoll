@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Install with one PowerShell command: `irm https://github.com/haikalmumtaz233/plimsoll/releases/latest/download/install.ps1 | iex`. It picks the x64 or ARM64 installer, verifies its checksum, and installs for the current user without admin rights.
 - Each release includes a `SHA256SUMS` file for its installers.
 
+### Fixed
+
+- Plimsoll reconnects soon after the network comes back, for example after switching Wi-Fi. It no longer keeps showing "Reconnecting" for up to half an hour.
+- The refresh button works while a refresh is failing, including after "Access refused" once the account is usable again. It still waits a minute between requests and respects rate limits.
+- Opening the popup retries a failed refresh right away when the last attempt was more than a minute ago.
+
 ## [0.8.0-rc.2] - 2026-10-03
 
 ### Changed
