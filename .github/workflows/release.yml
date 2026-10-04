@@ -118,17 +118,18 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          mkdir assets
-          find installers -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp -t assets {} +
-          mapfile -t installers < <(find assets -type f -printf '%f\n' | sort)
+          staging="$RUNNER_TEMP/release-assets"
+          mkdir -p "$staging"
+          find installers -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp -t "$staging" {} +
+          mapfile -t installers < <(find "$staging" -type f -printf '%f\n' | sort)
           if (( ${#installers[@]} == 0 )); then
             echo "no installers to publish" >&2
             exit 1
           fi
-          cp scripts/install.ps1 assets/install.ps1
-          (cd assets && sha256sum -- "${installers[@]}" install.ps1 > SHA256SUMS)
-          cat assets/SHA256SUMS
-          files=(assets/*)
+          cp scripts/install.ps1 "$staging/install.ps1"
+          (cd "$staging" && sha256sum -- "${installers[@]}" install.ps1 > SHA256SUMS)
+          cat "$staging/SHA256SUMS"
+          files=("$staging"/*)
           if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
             prerelease=()
             if [[ "$RELEASE_TAG" == *-* ]]; then
