@@ -1,4 +1,10 @@
-import type { LanguageChoice, LimitKind, OAuthStatus, RefreshState } from "../api/usage";
+import type {
+  CreditsState,
+  LanguageChoice,
+  LimitKind,
+  OAuthStatus,
+  RefreshState,
+} from "../api/usage";
 import type { HistoryRange } from "../usage/history";
 
 export type Locale = "en" | "id";
@@ -18,8 +24,15 @@ export interface Messages {
   };
   limits: {
     title: Record<LimitKind, string>;
+    model: (label: string) => string;
     resetsIn: (countdown: string) => string;
     resettingNow: string;
+  };
+  credits: {
+    title: string;
+    states: Record<CreditsState, string>;
+    used: (amount: string) => string;
+    usedOf: (used: string, limit: string) => string;
   };
   countdown: {
     underMinute: string;
@@ -136,8 +149,21 @@ export const en: Messages = {
   },
   limits: {
     title: { five_hour: "5-hour limit", seven_day: "Weekly limit" },
+    model: (label) => `Weekly · ${label}`,
     resetsIn: (countdown) => `Resets in ${countdown}`,
     resettingNow: "Resetting now",
+  },
+  credits: {
+    title: "Extra usage",
+    states: {
+      on: "On",
+      out_of_credits: "Off: out of credits",
+      limit_reached: "Off: monthly limit reached",
+      turned_off: "Turned off",
+      off: "Off",
+    },
+    used: (amount) => `${amount} used`,
+    usedOf: (used, limit) => `${used} of ${limit} used`,
   },
   countdown: {
     underMinute: "under a minute",
@@ -269,8 +295,21 @@ export const id: Messages = {
   },
   limits: {
     title: { five_hour: "Limit 5 jam", seven_day: "Limit mingguan" },
+    model: (label) => `Mingguan · ${label}`,
     resetsIn: (countdown) => `Reset dalam ${countdown}`,
     resettingNow: "Sedang reset",
+  },
+  credits: {
+    title: "Penggunaan tambahan",
+    states: {
+      on: "Aktif",
+      out_of_credits: "Nonaktif: kredit habis",
+      limit_reached: "Nonaktif: batas bulanan tercapai",
+      turned_off: "Dimatikan",
+      off: "Nonaktif",
+    },
+    used: (amount) => `${amount} terpakai`,
+    usedOf: (used, limit) => `${used} dari ${limit} terpakai`,
   },
   countdown: {
     underMinute: "kurang dari semenit",
