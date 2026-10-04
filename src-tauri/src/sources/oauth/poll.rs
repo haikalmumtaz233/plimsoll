@@ -8,9 +8,9 @@ use super::schedule::{Jitter, MIN_INTERVAL, PollSchedule};
 use super::transport::Transport;
 use super::{OAuthError, OAuthUsageSource};
 use crate::domain::clock::Timestamp;
-use crate::domain::limit::LimitSnapshot;
+use crate::domain::extras::OfficialUsage;
 
-pub type PollResult = Result<Vec<LimitSnapshot>, OAuthError>;
+pub type PollResult = Result<OfficialUsage, OAuthError>;
 
 pub async fn run<T, N, C, J, F>(
     source: &OAuthUsageSource<T>,

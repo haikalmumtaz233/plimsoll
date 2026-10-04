@@ -3,6 +3,7 @@ pub mod alerts;
 pub mod breakdown;
 pub mod calibration;
 pub mod clock;
+pub mod extras;
 pub mod history;
 pub mod limit;
 pub mod manual;

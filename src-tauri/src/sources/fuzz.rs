@@ -4,7 +4,7 @@ use super::cli::usage_text;
 use super::jsonl::line;
 use super::jsonl::reader::{LineRead, read_line_bounded};
 use super::oauth::credentials::{parse_access_token, parse_plan};
-use super::oauth::response;
+use super::oauth::{extras, response};
 use super::rfc3339;
 use crate::domain::clock::{Span, Timestamp};
 use crate::domain::limit::LimitKind;
@@ -64,6 +64,11 @@ const TIMESTAMP_SEEDS: &[&[u8]] = &[
 const OAUTH_SEEDS: &[&[u8]] = &[
     br#"{"limits":[{"kind":"session","percent":42.5,"resets_at":"2026-09-26T05:30:00Z"},{"kind":"weekly_all","percent":12,"resets_at":null}]}"#,
     br#"{"five_hour":{"utilization":81.0,"resets_at":"2026-09-26T05:30:00.000000+00:00"},"seven_day":{"utilization":3}}"#,
+];
+
+const OAUTH_EXTRA_SEEDS: &[&[u8]] = &[
+    br#"{"limits":[{"kind":"weekly_opus","percent":81,"resets_at":"2026-10-05T00:00:00Z","scope":"opus"}],"seven_day_sonnet":{"utilization":10,"resets_at":null}}"#,
+    br#"{"spend":{"used":{"amount_minor":1750,"currency":"USD","exponent":2},"limit":{"amount_minor":2000,"currency":"USD","exponent":2},"percent":0,"enabled":false,"disabled_reason":"out_of_credits"},"extra_usage":{"is_enabled":false,"used_credits":1750,"monthly_limit":2000,"currency":"USD","decimal_places":2,"credits_ever_enabled":true}}"#,
 ];
 
 const USAGE_TEXT_SEEDS: &[&[u8]] = &[
@@ -207,6 +212,36 @@ fn oauth_bodies_never_panic_and_yield_valid_limits() {
         }
     }
     assert!(parsed > 0);
+}
+
+#[test]
+fn oauth_extras_never_panic_and_yield_valid_models_and_credits() {
+    let mut mutator = Mutator::new(0x5eed_0007);
+    let mut found = 0;
+    for _ in 0..ROUNDS {
+        let input = mutator.input(OAUTH_EXTRA_SEEDS);
+        let (models, credits) = extras::parse(&input);
+        assert!(models.len() <= 8);
+        for (index, limit) in models.iter().enumerate() {
+            let percent = limit.utilization.percent();
+            assert!(percent.is_finite() && percent >= 0.0);
+            assert!(!limit.model.as_str().is_empty() && limit.model.as_str().len() <= 32);
+            assert!(
+                models[..index]
+                    .iter()
+                    .all(|other| other.model != limit.model)
+            );
+        }
+        if let Some(credits) = credits {
+            found += 1;
+            for money in [credits.used, credits.limit].into_iter().flatten() {
+                assert!(money.minor >= 0 && money.exponent <= 6);
+                assert_eq!(money.currency.as_str().len(), 3);
+            }
+        }
+        found += models.len();
+    }
+    assert!(found > 0);
 }
 
 #[test]

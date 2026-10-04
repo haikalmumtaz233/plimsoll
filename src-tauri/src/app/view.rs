@@ -5,8 +5,9 @@ use crate::domain::alerts::Alert;
 use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking};
 use crate::domain::calibration::{Basis, Estimate};
 use crate::domain::clock::Timestamp;
+use crate::domain::extras::{Credits, ModelLimit, Money};
 use crate::domain::history::{BUCKET, HourlyHistory};
-use crate::domain::limit::LimitSnapshot;
+use crate::domain::limit::{LimitSnapshot, Utilization};
 use crate::domain::period::Window;
 use crate::domain::plan::Plan;
 use crate::domain::preferences::{Language, PollInterval, Preferences};
@@ -135,6 +136,56 @@ impl RefreshView {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelLimitView {
+    pub model: String,
+    pub percent: f64,
+    pub resets_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MoneyView {
+    pub minor: i64,
+    pub exponent: u8,
+    pub currency: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreditsView {
+    pub state: &'static str,
+    pub used: Option<MoneyView>,
+    pub limit: Option<MoneyView>,
+    pub percent: Option<f64>,
+}
+
+fn model_limit_view(limit: &ModelLimit) -> ModelLimitView {
+    ModelLimitView {
+        model: limit.model.as_str().to_owned(),
+        percent: limit.utilization.percent(),
+        resets_at: limit.resets_at.map(Timestamp::unix_millis),
+    }
+}
+
+fn money_view(money: &Money) -> MoneyView {
+    MoneyView {
+        minor: money.minor,
+        exponent: money.exponent,
+        currency: money.currency.as_str().to_owned(),
+    }
+}
+
+fn credits_view(credits: &Credits) -> CreditsView {
+    CreditsView {
+        state: credits.state.name(),
+        used: credits.used.as_ref().map(money_view),
+        limit: credits.limit.as_ref().map(money_view),
+        percent: credits.utilization.map(Utilization::percent),
+    }
+}
+
 #[must_use]
 pub const fn login_state(status: OAuthStatus, accurate_mode: bool, running: bool) -> &'static str {
     if running {
@@ -194,6 +245,8 @@ pub struct UsageView {
     pub breakdown: BreakdownsView,
     pub autostart: bool,
     pub refresh: RefreshView,
+    pub models: Vec<ModelLimitView>,
+    pub credits: Option<CreditsView>,
     pub plan: Option<String>,
     pub login: &'static str,
     pub generated_at: i64,
@@ -233,6 +286,8 @@ impl UsageView {
             breakdown: breakdowns_view(&report.summary.breakdowns),
             autostart,
             refresh: RefreshView::new(refresh),
+            models: report.models.iter().map(model_limit_view).collect(),
+            credits: report.credits.as_ref().map(credits_view),
             plan: plan.filter(|_| report.accurate_mode).map(Plan::label),
             login: login_state(report.status, report.accurate_mode, login_running),
             generated_at: now.unix_millis(),
@@ -341,6 +396,7 @@ mod tests {
     use crate::domain::breakdown::{Breakdown, Breakdowns, Ranking, Share};
     use crate::domain::calibration::{Basis, Estimate};
     use crate::domain::clock::{Span, Timestamp};
+    use crate::domain::extras::{Credits, CreditsState, Currency, ModelLimit, ModelName, Money};
     use crate::domain::history::HourlyHistory;
     use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
     use crate::domain::period::Window;
@@ -362,6 +418,8 @@ mod tests {
             official_updated_at: Some(NOW - Span::minutes(3)),
             preferences: Preferences::default(),
             manual: Vec::new(),
+            models: Vec::new(),
+            credits: None,
             estimates: vec![Estimate {
                 kind: LimitKind::SevenDay,
                 utilization: Utilization::from_percent(12.5).expect("valid percent"),
@@ -482,6 +540,8 @@ mod tests {
                     "state": "cooling",
                     "readyAt": (NOW + Span::minutes(1)).unix_millis()
                 },
+                "models": [],
+                "credits": null,
                 "plan": "Max 5x",
                 "login": "hidden",
                 "generatedAt": NOW.unix_millis()
@@ -520,6 +580,55 @@ mod tests {
         assert_eq!(login_state(OAuthStatus::SignedOut, false, false), "hidden");
         assert_eq!(login_state(OAuthStatus::Retrying, true, false), "hidden");
         assert_eq!(login_state(OAuthStatus::Active, true, true), "running");
+    }
+
+    #[test]
+    fn model_limits_and_credits_serialize_for_the_popup() {
+        let window = Window::starting_at(NOW - Span::hours(1), Span::FIVE_HOURS);
+        let usd = |minor| Money::new(minor, 2, Currency::parse("USD").expect("currency"));
+        let report = Report {
+            models: vec![ModelLimit {
+                model: ModelName::parse("opus").expect("name"),
+                utilization: Utilization::from_percent(81.5).expect("percent"),
+                resets_at: Some(NOW + Span::days(1)),
+            }],
+            credits: Some(Credits {
+                state: CreditsState::OutOfCredits,
+                used: usd(1_750),
+                limit: usd(2_000),
+                utilization: None,
+                ever_enabled: true,
+            }),
+            ..sample_report(window)
+        };
+        let view = UsageView::from_report(
+            &report,
+            ViewContext {
+                language: Language::English,
+                autostart: false,
+                refresh: ManualRefresh::Ready,
+                plan: None,
+                login_running: false,
+                now: NOW,
+            },
+        );
+        assert_eq!(
+            serde_json::to_value(&view.models).ok(),
+            Some(json!([{
+                "model": "opus",
+                "percent": 81.5,
+                "resetsAt": (NOW + Span::days(1)).unix_millis()
+            }]))
+        );
+        assert_eq!(
+            serde_json::to_value(&view.credits).ok(),
+            Some(json!({
+                "state": "out_of_credits",
+                "used": { "minor": 1750, "exponent": 2, "currency": "USD" },
+                "limit": { "minor": 2000, "exponent": 2, "currency": "USD" },
+                "percent": null
+            }))
+        );
     }
 
     #[test]
