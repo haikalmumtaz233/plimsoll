@@ -1,13 +1,7 @@
 # Plimsoll
 
-> Your Claude plan limits, in the Windows system tray.
-
-[![Latest release](https://img.shields.io/github/v/release/haikalmumtaz233/plimsoll?style=flat-square&color=1f6feb)](https://github.com/haikalmumtaz233/plimsoll/releases/latest)
-[![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4?style=flat-square)](#requirements)
-[![License: MIT](https://img.shields.io/badge/license-MIT-6e5aff?style=flat-square)](LICENSE)
-
 <p align="center">
-  <img src="assets/popup.png" alt="The Plimsoll popup with the five-hour limit, the weekly limit, extra usage, and a 24-hour token history chart." width="360" />
+  <img src="assets/popup.png" alt="The Plimsoll popup on a Max 20x plan with the five-hour and weekly limits at 0 percent and a 24-hour token history chart." width="360" />
 </p>
 
 ## Install
