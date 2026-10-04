@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-04
+
 ### Added
 
 - Install with one PowerShell command: `irm https://github.com/haikalmumtaz233/plimsoll/releases/latest/download/install.ps1 | iex`. It picks the x64 or ARM64 installer, verifies its checksum, and installs for the current user without admin rights.
@@ -136,7 +138,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Opt-in accurate mode that reads the Claude Code sign-in on this PC to fetch official percentages, falling back to local estimates when it is unavailable.
 - Tray icon drawn as a sharp badge at 100 to 300 percent display scaling: the most used limit in percent, colored at 50, 80 and 95 percent, or tokens used when accurate mode is off. The tooltip lists each limit with its reset countdown.
 
-[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.8.0-rc.1...HEAD
+[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.8.0-rc.2...v1.0.0
+[0.8.0-rc.2]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.8.0-rc.1...v0.8.0-rc.2
 [0.8.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.7.0-rc.1...v0.8.0-rc.1
 [0.7.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.6.0-rc.2...v0.7.0-rc.1
 [0.6.0-rc.2]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.6.0-rc.1...v0.6.0-rc.2
