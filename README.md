@@ -1,5 +1,7 @@
 # Plimsoll
 
+> Your Claude plan limits, in the Windows system tray.
+
 <p align="center">
   <img src="assets/popup.png" alt="The Plimsoll popup on a Max 20x plan with the five-hour and weekly limits at 0 percent and a 24-hour token history chart." width="360" />
 </p>
