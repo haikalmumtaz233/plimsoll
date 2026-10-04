@@ -104,6 +104,27 @@ export interface RefreshView {
   readyAt: number | null;
 }
 
+export interface ModelLimitView {
+  model: string;
+  percent: number;
+  resetsAt: number | null;
+}
+
+export interface MoneyView {
+  minor: number;
+  exponent: number;
+  currency: string;
+}
+
+export type CreditsState = "on" | "out_of_credits" | "limit_reached" | "turned_off" | "off";
+
+export interface CreditsView {
+  state: CreditsState;
+  used: MoneyView | null;
+  limit: MoneyView | null;
+  percent: number | null;
+}
+
 export interface UsageView {
   accurateMode: boolean;
   cliFallback: boolean;
@@ -118,6 +139,8 @@ export interface UsageView {
   breakdown: BreakdownsView;
   autostart: boolean;
   refresh: RefreshView;
+  models: ModelLimitView[];
+  credits: CreditsView | null;
   plan: string | null;
   login: "hidden" | "ready" | "running";
   generatedAt: number;

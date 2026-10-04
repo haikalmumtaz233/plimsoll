@@ -9,20 +9,23 @@
     limit: LimitView;
     thresholds: ThresholdsView;
     now: number;
+    title?: string;
+    key?: string;
   }
 
-  let { messages, limit, thresholds, now }: Props = $props();
+  let { messages, limit, thresholds, now, title, key }: Props = $props();
 
-  const titleId = $derived(`limit-${limit.kind}`);
+  const id = $derived(key ?? limit.kind);
+  const titleId = $derived(`limit-${id}`);
   const reset = $derived(resetText(limit.resetsAt, now, messages));
   const pace = $derived(paceFraction(limit.kind, limit.resetsAt, now));
-  const paceId = $derived(`pace-${limit.kind}`);
+  const paceId = $derived(`pace-${id}`);
   const paceHint = $derived(pace === null ? null : paceText(limit.percent, pace, messages));
 </script>
 
 <section class="card" aria-labelledby={titleId}>
   <div class="row">
-    <h2 class="title" id={titleId}>{limitTitle(limit.kind, messages)}</h2>
+    <h2 class="title" id={titleId}>{title ?? limitTitle(limit.kind, messages)}</h2>
     {#if reset !== null}
       <p class="muted">{reset}</p>
     {/if}

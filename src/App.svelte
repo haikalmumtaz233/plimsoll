@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { UnlistenFn } from "@tauri-apps/api/event";
   import AppHeader from "./lib/components/AppHeader.svelte";
+  import CreditsCard from "./lib/components/CreditsCard.svelte";
   import LimitCard from "./lib/components/LimitCard.svelte";
   import SettingsPanel from "./lib/components/SettingsPanel.svelte";
   import TokenCard from "./lib/components/TokenCard.svelte";
@@ -31,6 +32,7 @@
     statusTone,
     updatedText,
   } from "./lib/usage/format";
+  import { modelLimitTitle } from "./lib/usage/extras";
   import { type HistoryRange } from "./lib/usage/history";
   import { effectiveRefresh, refreshLabel } from "./lib/usage/refresh";
   import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
@@ -335,6 +337,19 @@
           now={view.generatedAt}
         />
       {/each}
+      {#each view.models as model (model.model)}
+        <LimitCard
+          {messages}
+          limit={{ kind: "seven_day", percent: model.percent, resetsAt: model.resetsAt }}
+          thresholds={view.preferences.thresholds}
+          now={view.generatedAt}
+          title={modelLimitTitle(model.model, messages)}
+          key={`model-${model.model}`}
+        />
+      {/each}
+      {#if view.credits !== null}
+        <CreditsCard {messages} credits={view.credits} />
+      {/if}
     {:else}
       <TokenCard
         id="five-hour"
