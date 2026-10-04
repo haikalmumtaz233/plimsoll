@@ -653,9 +653,13 @@ fn current_plan<R: Runtime>(app: &AppHandle<R>) -> Option<Plan> {
 
 fn log_oauth(previous: Option<OAuthStatus>, result: &PollResult) {
     match result {
-        Ok(snapshots) if previous != Some(OAuthStatus::Active) => diagnostics::info(
+        Ok(usage) if previous != Some(OAuthStatus::Active) => diagnostics::info(
             "oauth",
-            &format!("usage refreshed with {} limits", snapshots.len()),
+            &format!(
+                "usage refreshed with {} limits and {} model limits",
+                usage.limits.len(),
+                usage.models.len()
+            ),
         ),
         Ok(_) => {}
         Err(error) => diagnostics::warn(

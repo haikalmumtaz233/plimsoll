@@ -54,6 +54,7 @@ impl OAuthStatus {
 #[cfg(test)]
 mod tests {
     use super::OAuthStatus;
+    use crate::domain::extras::OfficialUsage;
     use crate::sources::oauth::OAuthError;
     use crate::sources::oauth::credentials::CredentialsError;
     use crate::sources::oauth::transport::TransportError;
@@ -61,7 +62,11 @@ mod tests {
 
     #[test]
     fn successful_polls_are_active_and_skip_the_fallback() {
-        let status = OAuthStatus::from_result(&Ok(Vec::new()));
+        let status = OAuthStatus::from_result(&Ok(OfficialUsage {
+            limits: Vec::new(),
+            models: Vec::new(),
+            credits: None,
+        }));
         assert_eq!(status, OAuthStatus::Active);
         assert!(!status.uses_fallback());
     }

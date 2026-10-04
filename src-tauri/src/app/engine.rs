@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::domain::alerts::{self, Alert};
 use crate::domain::calibration::{self, Basis, Calibration, Estimate, Sample};
 use crate::domain::clock::{Span, Timestamp};
+use crate::domain::extras::{Credits, Extras, ModelLimit};
 use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
 use crate::domain::manual::ManualReading;
 use crate::domain::period::Window;
@@ -25,12 +26,15 @@ pub struct Report {
     pub summary: UsageSummary,
     pub estimates: Vec<Estimate>,
     pub manual: Vec<ManualReading>,
+    pub models: Vec<ModelLimit>,
+    pub credits: Option<Credits>,
 }
 
 #[derive(Debug)]
 pub struct Engine {
     database: Database,
     status: OAuthStatus,
+    extras: Option<Extras>,
 }
 
 impl Engine {
@@ -40,7 +44,11 @@ impl Engine {
         } else {
             OAuthStatus::Disabled
         };
-        Ok(Self { database, status })
+        Ok(Self {
+            database,
+            status,
+            extras: None,
+        })
     }
 
     pub fn migrate_settings(&self) -> Result<bool, DatabaseError> {
@@ -72,6 +80,7 @@ impl Engine {
         } else {
             OAuthStatus::Disabled
         };
+        self.extras = None;
         Ok(())
     }
 
@@ -124,8 +133,13 @@ impl Engine {
         if !self.accurate_mode()? {
             return Ok(());
         }
-        if let Ok(snapshots) = result {
-            self.database.insert_snapshots(now, snapshots)?;
+        if let Ok(usage) = result {
+            self.database.insert_snapshots(now, &usage.limits)?;
+            self.extras = Some(Extras {
+                models: usage.models.clone(),
+                credits: usage.credits.clone(),
+                observed_at: now,
+            });
         }
         self.status = OAuthStatus::from_result(result);
         Ok(())
@@ -172,7 +186,24 @@ impl Engine {
             estimates: self.estimates(&summary, &manual, now)?,
             manual,
             summary,
+            models: self.current_models(accurate_mode, now),
+            credits: self.current_credits(accurate_mode, now),
         })
+    }
+
+    fn current_models(&self, accurate_mode: bool, now: Timestamp) -> Vec<ModelLimit> {
+        self.extras
+            .as_ref()
+            .filter(|_| accurate_mode)
+            .map(|extras| extras.current_models(now))
+            .unwrap_or_default()
+    }
+
+    fn current_credits(&self, accurate_mode: bool, now: Timestamp) -> Option<Credits> {
+        self.extras
+            .as_ref()
+            .filter(|_| accurate_mode)
+            .and_then(|extras| extras.current_credits(now))
     }
 
     fn estimates(
@@ -291,6 +322,7 @@ mod tests {
     use super::Engine;
     use crate::domain::calibration::Basis;
     use crate::domain::clock::{Span, Timestamp};
+    use crate::domain::extras::{Credits, CreditsState, ModelLimit, ModelName, OfficialUsage};
     use crate::domain::limit::{LimitKind, LimitSnapshot, STALE_AFTER, Utilization};
     use crate::domain::preferences::{PollInterval, Preferences};
     use crate::domain::record::{EventKey, KeyedEvent, UsageEvent};
@@ -322,6 +354,49 @@ mod tests {
                     ..TokenCounts::default()
                 },
             },
+        }
+    }
+
+    #[test]
+    fn reports_model_limits_and_credits_while_accurate_mode_is_on() {
+        let mut engine = engine();
+        engine.set_accurate_mode(true).expect("opt in");
+        let usage = OfficialUsage {
+            limits: vec![five_hour(40.0)],
+            models: vec![ModelLimit {
+                model: ModelName::parse("opus").expect("name"),
+                utilization: Utilization::from_percent(70.0).expect("percent"),
+                resets_at: Some(NOW + Span::days(2)),
+            }],
+            credits: Some(Credits {
+                state: CreditsState::On,
+                used: None,
+                limit: None,
+                utilization: None,
+                ever_enabled: true,
+            }),
+        };
+        engine.record_oauth(&Ok(usage), NOW).expect("record");
+        let report = engine.report(NOW).expect("report");
+        assert_eq!(report.models.len(), 1);
+        assert!(report.credits.is_some());
+        let later = engine
+            .report(NOW + STALE_AFTER + Span::minutes(1))
+            .expect("report");
+        assert!(later.models.is_empty(), "{:?}", later.models);
+        assert_eq!(later.credits, None);
+        engine.set_accurate_mode(false).expect("opt out");
+        engine.set_accurate_mode(true).expect("opt in");
+        let cleared = engine.report(NOW).expect("report");
+        assert!(cleared.models.is_empty(), "{:?}", cleared.models);
+        assert_eq!(cleared.credits, None);
+    }
+
+    fn official(limits: Vec<LimitSnapshot>) -> OfficialUsage {
+        OfficialUsage {
+            limits,
+            models: Vec::new(),
+            credits: None,
         }
     }
 
@@ -359,7 +434,7 @@ mod tests {
     fn oauth_results_are_ignored_until_opted_in() {
         let mut engine = engine();
         engine
-            .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
+            .record_oauth(&Ok(official(vec![five_hour(40.0)])), NOW)
             .expect("record");
         let report = engine.report(NOW).expect("report");
         assert!(
@@ -380,7 +455,7 @@ mod tests {
         );
 
         engine
-            .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
+            .record_oauth(&Ok(official(vec![five_hour(40.0)])), NOW)
             .expect("record");
         let report = engine.report(NOW).expect("report");
         assert!(report.accurate_mode);
@@ -404,7 +479,7 @@ mod tests {
         let mut engine = engine();
         engine.set_accurate_mode(true).expect("opt in");
         engine
-            .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
+            .record_oauth(&Ok(official(vec![five_hour(40.0)])), NOW)
             .expect("record");
         engine.set_accurate_mode(false).expect("opt out");
         let report = engine.report(NOW).expect("report");
@@ -421,14 +496,14 @@ mod tests {
     fn alerts_fire_once_per_level_while_accurate() {
         let mut engine = engine();
         engine
-            .record_oauth(&Ok(vec![five_hour(85.0)]), NOW)
+            .record_oauth(&Ok(official(vec![five_hour(85.0)])), NOW)
             .expect("record");
         let alerts = engine.take_alerts(NOW).expect("alerts");
         assert!(alerts.is_empty(), "{alerts:?}");
 
         engine.set_accurate_mode(true).expect("opt in");
         engine
-            .record_oauth(&Ok(vec![five_hour(85.0)]), NOW)
+            .record_oauth(&Ok(official(vec![five_hour(85.0)])), NOW)
             .expect("record");
         let alerts = engine.take_alerts(NOW).expect("alerts");
         assert_eq!(alerts.len(), 1);
@@ -437,7 +512,7 @@ mod tests {
         assert!(alerts.is_empty(), "{alerts:?}");
 
         engine
-            .record_oauth(&Ok(vec![five_hour(97.0)]), NOW)
+            .record_oauth(&Ok(official(vec![five_hour(97.0)])), NOW)
             .expect("record");
         assert_eq!(
             engine.take_alerts(NOW).expect("alerts")[0].severity,
@@ -455,11 +530,11 @@ mod tests {
             past_events.push(keyed(&format!("past{index}"), (6 * index + 2) * 60, 1_000));
             engine
                 .record_oauth(
-                    &Ok(vec![LimitSnapshot {
+                    &Ok(official(vec![LimitSnapshot {
                         kind: LimitKind::FiveHour,
                         utilization: Utilization::from_percent(10.0).expect("valid percent"),
                         resets_at: Some(resets_at),
-                    }]),
+                    }])),
                     resets_at - Span::hours(1),
                 )
                 .expect("record");
@@ -481,7 +556,7 @@ mod tests {
 
         engine.set_accurate_mode(true).expect("opt in again");
         engine
-            .record_oauth(&Ok(vec![five_hour(40.0)]), NOW)
+            .record_oauth(&Ok(official(vec![five_hour(40.0)])), NOW)
             .expect("record current");
         let estimates = engine.report(NOW).expect("report").estimates;
         assert!(estimates.is_empty(), "{estimates:?}");

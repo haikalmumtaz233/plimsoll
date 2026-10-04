@@ -1,4 +1,5 @@
 pub mod credentials;
+pub mod extras;
 pub mod poll;
 pub mod response;
 pub mod schedule;
@@ -13,7 +14,7 @@ use thiserror::Error;
 use self::credentials::CredentialsError;
 use self::transport::{Reply, Transport, TransportError};
 use crate::domain::clock::Timestamp;
-use crate::domain::limit::LimitSnapshot;
+use crate::domain::extras::OfficialUsage;
 
 #[derive(Debug, Error)]
 pub enum OAuthError {
@@ -49,9 +50,17 @@ fn retry_hint(retry_after: Option<Duration>) -> String {
     })
 }
 
-pub fn interpret(reply: &Reply) -> Result<Vec<LimitSnapshot>, OAuthError> {
+pub fn interpret(reply: &Reply) -> Result<OfficialUsage, OAuthError> {
     match reply.status {
-        200 => response::parse(&reply.body).ok_or(OAuthError::SchemaChanged),
+        200 => {
+            let limits = response::parse(&reply.body).ok_or(OAuthError::SchemaChanged)?;
+            let (models, credits) = extras::parse(&reply.body);
+            Ok(OfficialUsage {
+                limits,
+                models,
+                credits,
+            })
+        }
         401 | 403 => Err(OAuthError::Unauthorized),
         404 => Err(OAuthError::EndpointGone),
         429 => Err(OAuthError::RateLimited {
@@ -76,7 +85,7 @@ impl<T: Transport> OAuthUsageSource<T> {
         }
     }
 
-    pub async fn fetch(&self, now: Timestamp) -> Result<Vec<LimitSnapshot>, OAuthError> {
+    pub async fn fetch(&self, now: Timestamp) -> Result<OfficialUsage, OAuthError> {
         let reply = {
             let token = credentials::read_access_token(&self.credentials, now)?;
             self.transport.get_usage(&token).await?
@@ -173,9 +182,10 @@ mod tests {
             FakeTransport::replying(vec![reply(200, USAGE)]),
             path.clone(),
         );
-        let snapshots = source.fetch(NOW).await.expect("snapshots");
+        let usage = source.fetch(NOW).await.expect("snapshots");
         assert_eq!(
-            snapshots
+            usage
+                .limits
                 .iter()
                 .map(|snapshot| snapshot.kind)
                 .collect::<Vec<_>>(),
@@ -221,7 +231,12 @@ mod tests {
             interpret(&reply(200, r#"{"surprise":true}"#)),
             Err(OAuthError::SchemaChanged)
         ));
-        assert_eq!(interpret(&reply(200, USAGE)).map(|s| s.len()).ok(), Some(2));
+        assert_eq!(
+            interpret(&reply(200, USAGE))
+                .map(|usage| usage.limits.len())
+                .ok(),
+            Some(2)
+        );
     }
 
     #[test]
