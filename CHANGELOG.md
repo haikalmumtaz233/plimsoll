@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-09
+
 ### Fixed
 
 - Accurate mode no longer stays on "Sign-in expired" after Windows starts while Claude Code is still signed in. When the saved sign-in expires, Plimsoll asks Claude Code to renew it in the background (no model call, no window), then retries at 5, 10, 20, 40 and 60 minute spacing if it stays expired. The "Log in to Claude Code" button appears only when the renewal does not help.
@@ -143,7 +145,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Opt-in accurate mode that reads the Claude Code sign-in on this PC to fetch official percentages, falling back to local estimates when it is unavailable.
 - Tray icon drawn as a sharp badge at 100 to 300 percent display scaling: the most used limit in percent, colored at 50, 80 and 95 percent, or tokens used when accurate mode is off. The tooltip lists each limit with its reset countdown.
 
-[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/haikalmumtaz233/plimsoll/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.8.0-rc.2...v1.0.0
 [0.8.0-rc.2]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.8.0-rc.1...v0.8.0-rc.2
 [0.8.0-rc.1]: https://github.com/haikalmumtaz233/plimsoll/compare/v0.7.0-rc.1...v0.8.0-rc.1
