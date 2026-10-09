@@ -83,9 +83,7 @@ describe("statusMessage", () => {
   });
 
   it("names the reason once no official reading is shown", () => {
-    expect(statusMessage(true, "token_expired", false, en)).toBe(
-      "Sign-in expired, open Claude Code",
-    );
+    expect(statusMessage(true, "token_expired", false, en)).toBe("Claude Code sign-in expired");
     expect(statusMessage(true, "retrying", false, en)).toBe("Reconnecting…");
   });
 });
