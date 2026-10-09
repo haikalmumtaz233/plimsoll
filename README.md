@@ -29,7 +29,7 @@ Turn on **Accurate mode** in Settings to see the official percentages.
 
 ## Privacy
 
-Plimsoll reads usage fields from Claude Code logs and never reads conversation content. In accurate mode it sends your Claude Code sign-in token only to `api.anthropic.com`, the endpoint behind `/usage`. No telemetry, and all data stays on your machine.
+Plimsoll reads usage fields from Claude Code logs and never reads conversation content. In accurate mode it sends your Claude Code sign-in token only to `api.anthropic.com`, the endpoint behind `/usage`. When that sign-in expires, Plimsoll runs Claude Code's `/usage` in the background so Claude Code renews it. Plimsoll never refreshes or rewrites the token itself. No telemetry, and all data stays on your machine.
 
 ## Requirements
 
