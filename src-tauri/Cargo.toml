@@ -1,6 +1,6 @@
 [package]
 name = "plimsoll"
-version = "1.0.0"
+version = "1.0.1"
 description = "A tiny Windows tray app for Claude plan limits"
 authors = ["Haikal Mumtaz"]
 license = "MIT"
