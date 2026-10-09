@@ -36,6 +36,11 @@ pub enum OAuthError {
 
 impl OAuthError {
     #[must_use]
+    pub const fn is_local(&self) -> bool {
+        matches!(self, Self::Credentials(_))
+    }
+
+    #[must_use]
     pub const fn retry_after(&self) -> Option<Duration> {
         match self {
             Self::RateLimited { retry_after } => *retry_after,
@@ -152,10 +157,21 @@ pub(crate) mod fake {
     }
 
     pub fn credentials_file(name: &str) -> PathBuf {
+        write_credentials(name, &format!(r#"{{"accessToken":"{FAKE_TOKEN}"}}"#))
+    }
+
+    pub fn expired_credentials_file(name: &str) -> PathBuf {
+        write_credentials(
+            name,
+            &format!(r#"{{"accessToken":"{FAKE_TOKEN}","expiresAt":0}}"#),
+        )
+    }
+
+    fn write_credentials(name: &str, entry: &str) -> PathBuf {
         let path =
             std::env::temp_dir().join(format!("plimsoll-oauth-{name}-{}.json", std::process::id()));
-        let body = format!(r#"{{"claudeAiOauth":{{"accessToken":"{FAKE_TOKEN}"}}}}"#);
-        fs::write(&path, body).expect("write scratch credentials");
+        fs::write(&path, format!(r#"{{"claudeAiOauth":{entry}}}"#))
+            .expect("write scratch credentials");
         path
     }
 }
@@ -249,6 +265,15 @@ mod tests {
         .expect_err("rate limited");
         assert_eq!(error.retry_after(), Some(Duration::from_secs(300)));
         assert_eq!(OAuthError::Unauthorized.retry_after(), None);
+    }
+
+    #[test]
+    fn only_credential_errors_are_local() {
+        assert!(OAuthError::Credentials(CredentialsError::Expired).is_local());
+        assert!(OAuthError::Credentials(CredentialsError::Missing).is_local());
+        assert!(!OAuthError::Unauthorized.is_local());
+        assert!(!OAuthError::RateLimited { retry_after: None }.is_local());
+        assert!(!OAuthError::Status(503).is_local());
     }
 
     #[test]
