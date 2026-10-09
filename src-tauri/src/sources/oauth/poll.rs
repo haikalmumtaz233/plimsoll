@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::time::Instant;
 
-use super::schedule::{Jitter, MIN_INTERVAL, PollSchedule};
+use super::schedule::{Jitter, MIN_INTERVAL, PollSchedule, local_retry};
 use super::transport::Transport;
 use super::{OAuthError, OAuthUsageSource};
 use crate::domain::clock::Timestamp;
@@ -31,24 +31,27 @@ pub async fn run<T, N, C, J, F>(
         let result = source.fetch(now()).await;
         schedule.set_base(cadence());
         let rate_limited = matches!(result, Err(OAuthError::RateLimited { .. }));
+        let local = result.as_ref().is_err_and(OAuthError::is_local);
         let delay = match &result {
             Ok(_) => schedule.after_success(jitter()),
+            Err(error) if error.is_local() => local_retry(jitter()),
             Err(error) => schedule.after_failure(error.retry_after(), jitter()),
         };
         if on_result(result).is_break() {
             return;
         }
-        pause(delay, rate_limited, wake).await;
+        pause(delay, rate_limited, local, wake).await;
     }
 }
 
-async fn pause(delay: Duration, rate_limited: bool, wake: &Notify) {
+async fn pause(delay: Duration, rate_limited: bool, local: bool, wake: &Notify) {
     if rate_limited {
         tokio::time::sleep(delay).await;
         return;
     }
     let started = Instant::now();
     if tokio::time::timeout(delay, wake.notified()).await.is_ok()
+        && !local
         && let Some(rest) = MIN_INTERVAL.checked_sub(started.elapsed())
     {
         tokio::time::sleep(rest).await;
@@ -60,7 +63,9 @@ mod tests {
     use super::run;
     use crate::domain::clock::Timestamp;
     use crate::sources::oauth::OAuthUsageSource;
-    use crate::sources::oauth::fake::{FakeTransport, credentials_file, reply};
+    use crate::sources::oauth::fake::{
+        FakeTransport, credentials_file, expired_credentials_file, reply,
+    };
     use crate::sources::oauth::schedule::{Jitter, PollSchedule};
     use crate::sources::oauth::transport::Reply;
     use std::fs;
@@ -219,6 +224,72 @@ mod tests {
         )
         .await;
         assert_eq!(polls, vec![(0, false), (600, true)]);
+        fs::remove_file(path).expect("cleanup");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_expired_sign_in_is_rechecked_every_minute_without_backing_off() {
+        let path = expired_credentials_file("expired");
+        let source = OAuthUsageSource::new(FakeTransport::default(), path.clone());
+        let wake = Notify::new();
+        let started = Instant::now();
+        let mut polls = Vec::new();
+        run(
+            &source,
+            PollSchedule::new(Duration::from_secs(30 * 60)),
+            || Timestamp::from_unix_millis(0),
+            || Duration::from_secs(30 * 60),
+            || Jitter::NONE,
+            &wake,
+            |result| {
+                polls.push((started.elapsed().as_secs(), result.is_ok()));
+                if polls.len() == 4 {
+                    ControlFlow::Break(())
+                } else {
+                    ControlFlow::Continue(())
+                }
+            },
+        )
+        .await;
+        assert_eq!(
+            polls,
+            vec![(0, false), (60, false), (120, false), (180, false)]
+        );
+        let tokens = source.transport.seen_tokens();
+        assert!(tokens.is_empty(), "{}", tokens.len());
+        fs::remove_file(path).expect("cleanup");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_renewed_sign_in_is_used_as_soon_as_the_poller_is_woken() {
+        let path = expired_credentials_file("renewed");
+        let source = OAuthUsageSource::new(
+            FakeTransport::replying(vec![reply(200, USAGE)]),
+            path.clone(),
+        );
+        let wake = Notify::new();
+        let started = Instant::now();
+        let mut polls = Vec::new();
+        run(
+            &source,
+            PollSchedule::default(),
+            || Timestamp::from_unix_millis(0),
+            || Duration::from_secs(60),
+            || Jitter::NONE,
+            &wake,
+            |result| {
+                polls.push((started.elapsed().as_secs(), result.is_ok()));
+                if polls.len() == 2 {
+                    return ControlFlow::Break(());
+                }
+                let renewed = credentials_file("renewed");
+                assert_eq!(renewed, path);
+                wake.notify_one();
+                ControlFlow::Continue(())
+            },
+        )
+        .await;
+        assert_eq!(polls, vec![(0, false), (0, true)]);
         fs::remove_file(path).expect("cleanup");
     }
 }

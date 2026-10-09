@@ -31,6 +31,11 @@ impl Jitter {
     }
 }
 
+#[must_use]
+pub fn local_retry(jitter: Jitter) -> Duration {
+    jitter.apply(MIN_INTERVAL)
+}
+
 #[derive(Debug, Clone)]
 pub struct PollSchedule {
     base: Duration,
@@ -77,7 +82,7 @@ impl PollSchedule {
 
 #[cfg(test)]
 mod tests {
-    use super::{Jitter, MAX_BACKOFF, MAX_RETRY_AFTER, MIN_INTERVAL, PollSchedule};
+    use super::{Jitter, MAX_BACKOFF, MAX_RETRY_AFTER, MIN_INTERVAL, PollSchedule, local_retry};
     use std::time::Duration;
 
     fn secs(duration: Duration) -> u64 {
@@ -175,5 +180,11 @@ mod tests {
             let delay = PollSchedule::default().after_success(Jitter::random());
             assert!((MIN_INTERVAL..=Duration::from_secs(66)).contains(&delay));
         }
+    }
+
+    #[test]
+    fn local_failures_retry_at_the_minimum_interval() {
+        assert_eq!(local_retry(Jitter::NONE), MIN_INTERVAL);
+        assert_eq!(secs(local_retry(Jitter::FULL)), 66);
     }
 }
