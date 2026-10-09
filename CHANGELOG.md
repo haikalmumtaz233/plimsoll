@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Accurate mode no longer stays on "Sign-in expired" after Windows starts while Claude Code is still signed in. When the saved sign-in expires, Plimsoll asks Claude Code to renew it in the background (no model call, no window), then retries at 5, 10, 20, 40 and 60 minute spacing if it stays expired. The "Log in to Claude Code" button appears only when the renewal does not help.
+- Plimsoll picks up a sign-in renewed by Claude Code within about a minute instead of up to 15 minutes later.
+
 ## [1.0.0] - 2026-10-04
 
 ### Added
