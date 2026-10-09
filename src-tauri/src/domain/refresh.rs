@@ -15,6 +15,10 @@ pub const MIN_SPACING: Span = Span::minutes(1);
 pub const STALE_GRACE: Span = Span::minutes(5);
 pub const CLI_FALLBACK_SPACING: Span = Span::minutes(10);
 pub const CLI_FALLBACK_FAILURES: u32 = 2;
+pub const RENEWAL_FIRST_SPACING: Span = Span::minutes(5);
+pub const RENEWAL_MAX_SPACING: Span = Span::hours(1);
+
+const RENEWAL_MAX_DOUBLINGS: u32 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FallbackState {
@@ -46,6 +50,25 @@ pub fn cli_fallback_due(state: FallbackState, now: Timestamp) -> bool {
         .last_run
         .is_none_or(|last| now - last >= CLI_FALLBACK_SPACING);
     state.enabled && failing && spaced
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Renewal {
+    pub runs: u32,
+    pub last_run: Option<Timestamp>,
+}
+
+#[must_use]
+pub fn renewal_due(renewal: Renewal, now: Timestamp) -> bool {
+    renewal
+        .last_run
+        .is_none_or(|last| now - last >= renewal_spacing(renewal.runs))
+}
+
+fn renewal_spacing(runs: u32) -> Span {
+    let doublings = runs.saturating_sub(1).min(RENEWAL_MAX_DOUBLINGS);
+    let first = RENEWAL_FIRST_SPACING.millis();
+    Span::from_millis(first.saturating_mul(1 << doublings)).min(RENEWAL_MAX_SPACING)
 }
 
 #[must_use]
@@ -123,8 +146,9 @@ mod tests {
     use super::{
         Activity, Attempts, CLI_FALLBACK_FAILURES, CLI_FALLBACK_SPACING, CODING_DELAY,
         FallbackState, IDLE_DELAY, LONG_IDLE_DELAY, MIN_SPACING, ManualRefresh, RECENT_DELAY,
-        RUNNING_TIMEOUT, STALE_GRACE, WARM_DELAY, adaptive_delay, cli_fallback_due, is_outdated,
-        manual_refresh, refresh_allowed,
+        RENEWAL_FIRST_SPACING, RENEWAL_MAX_SPACING, RUNNING_TIMEOUT, Renewal, STALE_GRACE,
+        WARM_DELAY, adaptive_delay, cli_fallback_due, is_outdated, manual_refresh, refresh_allowed,
+        renewal_due,
     };
     use crate::domain::clock::{Span, Timestamp};
 
@@ -302,5 +326,38 @@ mod tests {
             coding_at: Some(NOW),
         };
         assert_eq!(adaptive_delay(both, NOW), RECENT_DELAY);
+    }
+
+    fn renewal(runs: u32, last_run: Timestamp) -> Renewal {
+        Renewal {
+            runs,
+            last_run: Some(last_run),
+        }
+    }
+
+    #[test]
+    fn the_first_renewal_of_an_expired_sign_in_starts_at_once() {
+        assert!(renewal_due(Renewal::default(), NOW));
+    }
+
+    #[test]
+    fn renewals_that_leave_the_sign_in_expired_back_off_up_to_an_hour() {
+        assert_eq!(RENEWAL_FIRST_SPACING, Span::minutes(5));
+        assert_eq!(RENEWAL_MAX_SPACING, Span::hours(1));
+        let spacings = [
+            (1, 5),
+            (2, 10),
+            (3, 20),
+            (4, 40),
+            (5, 60),
+            (9, 60),
+            (u32::MAX, 60),
+        ];
+        for (runs, minutes) in spacings {
+            let last_run = NOW - Span::minutes(minutes);
+            let almost = NOW - Span::seconds(1);
+            assert!(!renewal_due(renewal(runs, last_run), almost), "{runs}");
+            assert!(renewal_due(renewal(runs, last_run), NOW), "{runs}");
+        }
     }
 }
