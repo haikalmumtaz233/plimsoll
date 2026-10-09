@@ -24,8 +24,9 @@ use crate::domain::limit::{LimitKind, LimitSnapshot, Utilization};
 use crate::domain::plan::Plan;
 use crate::domain::preferences::{Language, Preferences};
 use crate::domain::refresh::{
-    Activity, Attempts, FallbackState, MIN_SPACING, ManualRefresh, adaptive_delay,
+    Activity, Attempts, FallbackState, MIN_SPACING, ManualRefresh, Renewal, adaptive_delay,
     cli_fallback_due, fallback_is_recent, is_outdated, manual_refresh, refresh_allowed,
+    renewal_due,
 };
 use crate::error::AppError;
 use crate::i18n::Text;
@@ -61,6 +62,7 @@ struct SyncState {
     rate_limited: bool,
     cli_last_run: Option<Timestamp>,
     cli_last_success: Option<Timestamp>,
+    renewal: Renewal,
 }
 
 struct Shared {
@@ -71,6 +73,7 @@ struct Shared {
     plan: Mutex<Option<Plan>>,
     login_running: AtomicBool,
     cli_running: AtomicBool,
+    renewing: AtomicBool,
     watchers: Mutex<Vec<RecommendedWatcher>>,
     refresh: Sender<()>,
     menu_language: Mutex<Option<Language>>,
@@ -98,6 +101,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
         plan: Mutex::new(None),
         login_running: AtomicBool::new(false),
         cli_running: AtomicBool::new(false),
+        renewing: AtomicBool::new(false),
         watchers: Mutex::new(Vec::new()),
         refresh,
         menu_language: Mutex::new(None),
@@ -199,6 +203,11 @@ fn login_running<R: Runtime>(app: &AppHandle<R>) -> bool {
         .is_some_and(|shared| shared.login_running.load(Ordering::SeqCst))
 }
 
+fn renewing<R: Runtime>(app: &AppHandle<R>) -> bool {
+    app.try_state::<Shared>()
+        .is_some_and(|shared| shared.renewing.load(Ordering::SeqCst))
+}
+
 fn view_of<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> UsageView {
     UsageView::from_report(
         report,
@@ -208,6 +217,7 @@ fn view_of<R: Runtime>(app: &AppHandle<R>, report: &Report, now: Timestamp) -> U
             refresh: manual_state(app, now),
             plan: current_plan(app),
             login_running: login_running(app),
+            renewing: renewing(app),
             now,
         },
     )
@@ -225,6 +235,7 @@ fn manual_state<R: Runtime>(app: &AppHandle<R>, now: Timestamp) -> ManualRefresh
 pub fn set_accurate_mode<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Option<UsageView> {
     with_engine(app, |engine| engine.set_accurate_mode(enabled))?;
     if enabled {
+        update_sync(app, |state| state.renewal = Renewal::default());
         start_poller(app);
     } else {
         stop_poller(app);
@@ -534,8 +545,14 @@ fn record<R: Runtime>(app: &AppHandle<R>, result: &PollResult) {
         remember_plan(app);
     }
     with_engine(app, |engine| engine.record_oauth(result, now));
+    if !matches!(
+        result,
+        Err(OAuthError::Credentials(CredentialsError::Expired))
+    ) {
+        update_sync(app, |state| state.renewal = Renewal::default());
+    }
     announce_new_readings(app, now);
-    start_cli_fallback_if_due(app, now);
+    start_claude_usage_if_due(app, now);
 }
 
 fn announce_new_readings<R: Runtime>(app: &AppHandle<R>, now: Timestamp) {
@@ -551,54 +568,80 @@ fn announce_new_readings<R: Runtime>(app: &AppHandle<R>, now: Timestamp) {
     }
 }
 
-fn start_cli_fallback_if_due<R: Runtime>(app: &AppHandle<R>, now: Timestamp) {
+fn start_claude_usage_if_due<R: Runtime>(app: &AppHandle<R>, now: Timestamp) {
     let Some(shared) = app.try_state::<Shared>() else {
         return;
     };
-    let Some((enabled, token_expired)) = with_engine(app, |engine| {
+    let Some((accurate_mode, fallback_enabled, token_expired)) = with_engine(app, |engine| {
+        let accurate_mode = engine.accurate_mode()?;
         Ok((
-            engine.accurate_mode()? && engine.cli_fallback()?,
+            accurate_mode,
+            accurate_mode && engine.cli_fallback()?,
             engine.status() == OAuthStatus::TokenExpired,
         ))
     }) else {
         return;
     };
     let sync = sync_state(app);
-    let state = FallbackState {
-        enabled,
-        failures: sync.failures,
-        token_expired,
-        last_run: sync.cli_last_run,
-    };
-    if !cli_fallback_due(state, now) || shared.cli_running.swap(true, Ordering::SeqCst) {
+    let renew =
+        accurate_mode && token_expired && !login_running(app) && renewal_due(sync.renewal, now);
+    let fallback = cli_fallback_due(
+        FallbackState {
+            enabled: fallback_enabled,
+            failures: sync.failures,
+            token_expired,
+            last_run: sync.cli_last_run,
+        },
+        now,
+    );
+    if !(renew || fallback) || shared.cli_running.swap(true, Ordering::SeqCst) {
         return;
     }
-    update_sync(app, |state| state.cli_last_run = Some(now));
+    update_sync(app, |state| {
+        state.cli_last_run = Some(now);
+        if renew {
+            state.renewal = Renewal {
+                runs: state.renewal.runs.saturating_add(1),
+                last_run: Some(now),
+            };
+        }
+    });
+    if renew {
+        shared.renewing.store(true, Ordering::SeqCst);
+        diagnostics::info("cli", "asked claude code to renew the expired sign-in");
+        publish(app);
+    }
     let app = app.clone();
     thread::spawn(move || {
-        run_cli_fallback(&app);
+        run_claude_usage(&app, fallback_enabled);
         if let Some(shared) = app.try_state::<Shared>() {
+            shared.renewing.store(false, Ordering::SeqCst);
             shared.cli_running.store(false, Ordering::SeqCst);
+            if renew {
+                shared.wake.notify_one();
+            }
         }
+        publish(&app);
     });
 }
 
-fn run_cli_fallback<R: Runtime>(app: &AppHandle<R>) {
+fn run_claude_usage<R: Runtime>(app: &AppHandle<R>, record: bool) {
     let Some(directory) = cli_directory(app) else {
-        diagnostics::error("cli", "no folder is available for the usage fallback");
+        diagnostics::error("cli", "no folder is available to run claude code");
         return;
     };
-    let output = match usage::read_usage(&directory) {
-        Ok(output) => output,
-        Err(error) => {
-            diagnostics::warn("cli", &format!("usage fallback failed: {error}"));
-            return;
-        }
-    };
+    match usage::read_usage(&directory) {
+        Ok(output) if record => record_cli_usage(app, &output),
+        Ok(_) => diagnostics::info("cli", "claude code finished the sign-in renewal"),
+        Err(error) => diagnostics::warn("cli", &format!("claude code /usage failed: {error}")),
+    }
+}
+
+fn record_cli_usage<R: Runtime>(app: &AppHandle<R>, output: &str) {
     let now = clock::now();
     let snapshots = match local_offset() {
-        Some(offset) => usage_text::parse(&output, now, offset),
-        None => usage_text::parse(&output, now, Span::ZERO)
+        Some(offset) => usage_text::parse(output, now, offset),
+        None => usage_text::parse(output, now, Span::ZERO)
             .into_iter()
             .map(|snapshot| LimitSnapshot {
                 resets_at: None,
@@ -662,6 +705,7 @@ fn log_oauth(previous: Option<OAuthStatus>, result: &PollResult) {
             ),
         ),
         Ok(_) => {}
+        Err(error) if error.is_local() && previous == Some(OAuthStatus::from_error(error)) => {}
         Err(error) => diagnostics::warn(
             "oauth",
             &format!("{:?}: {error}", OAuthStatus::from_error(error)),

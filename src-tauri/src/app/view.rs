@@ -187,9 +187,17 @@ fn credits_view(credits: &Credits) -> CreditsView {
 }
 
 #[must_use]
-pub const fn login_state(status: OAuthStatus, accurate_mode: bool, running: bool) -> &'static str {
+pub const fn login_state(
+    status: OAuthStatus,
+    accurate_mode: bool,
+    running: bool,
+    renewing: bool,
+) -> &'static str {
     if running {
         return "running";
+    }
+    if renewing {
+        return "renewing";
     }
     match status {
         OAuthStatus::SignedOut | OAuthStatus::TokenExpired if accurate_mode => "ready",
@@ -204,6 +212,7 @@ pub struct ViewContext {
     pub refresh: ManualRefresh,
     pub plan: Option<Plan>,
     pub login_running: bool,
+    pub renewing: bool,
     pub now: Timestamp,
 }
 
@@ -261,6 +270,7 @@ impl UsageView {
             refresh,
             plan,
             login_running,
+            renewing,
             now,
         } = context;
         Self {
@@ -289,7 +299,7 @@ impl UsageView {
             models: report.models.iter().map(model_limit_view).collect(),
             credits: report.credits.as_ref().map(credits_view),
             plan: plan.filter(|_| report.accurate_mode).map(Plan::label),
-            login: login_state(report.status, report.accurate_mode, login_running),
+            login: login_state(report.status, report.accurate_mode, login_running, renewing),
             generated_at: now.unix_millis(),
         }
     }
@@ -482,6 +492,7 @@ mod tests {
                     multiplier: Some(5),
                 }),
                 login_running: false,
+                renewing: false,
                 now: NOW,
             },
         ))
@@ -567,6 +578,7 @@ mod tests {
                     multiplier: None,
                 }),
                 login_running: false,
+                renewing: false,
                 now: NOW,
             },
         );
@@ -575,11 +587,38 @@ mod tests {
 
     #[test]
     fn login_is_offered_only_when_claude_code_needs_it() {
-        assert_eq!(login_state(OAuthStatus::SignedOut, true, false), "ready");
-        assert_eq!(login_state(OAuthStatus::TokenExpired, true, false), "ready");
-        assert_eq!(login_state(OAuthStatus::SignedOut, false, false), "hidden");
-        assert_eq!(login_state(OAuthStatus::Retrying, true, false), "hidden");
-        assert_eq!(login_state(OAuthStatus::Active, true, true), "running");
+        assert_eq!(
+            login_state(OAuthStatus::SignedOut, true, false, false),
+            "ready"
+        );
+        assert_eq!(
+            login_state(OAuthStatus::TokenExpired, true, false, false),
+            "ready"
+        );
+        assert_eq!(
+            login_state(OAuthStatus::SignedOut, false, false, false),
+            "hidden"
+        );
+        assert_eq!(
+            login_state(OAuthStatus::Retrying, true, false, false),
+            "hidden"
+        );
+        assert_eq!(
+            login_state(OAuthStatus::Active, true, true, false),
+            "running"
+        );
+    }
+
+    #[test]
+    fn a_renewal_in_progress_replaces_the_login_button() {
+        assert_eq!(
+            login_state(OAuthStatus::TokenExpired, true, false, true),
+            "renewing"
+        );
+        assert_eq!(
+            login_state(OAuthStatus::TokenExpired, true, true, true),
+            "running"
+        );
     }
 
     #[test]
@@ -609,6 +648,7 @@ mod tests {
                 refresh: ManualRefresh::Ready,
                 plan: None,
                 login_running: false,
+                renewing: false,
                 now: NOW,
             },
         );
