@@ -76,6 +76,7 @@ export interface Messages {
   login: {
     ready: string;
     running: string;
+    renewing: string;
     failed: string;
   };
   history: {
@@ -127,6 +128,7 @@ export interface Messages {
     risks: {
       token: string;
       storage: string;
+      renewal: string;
       endpoint: string;
       unofficial: string;
       requests: (minutes: number) => string;
@@ -197,7 +199,7 @@ export const en: Messages = {
     reasons: {
       pending: "Connecting…",
       signed_out: "Claude Code signed out",
-      token_expired: "Sign-in expired, open Claude Code",
+      token_expired: "Claude Code sign-in expired",
       unauthorized: "Access refused",
       unavailable: "Official data unavailable",
       retrying: "Reconnecting…",
@@ -219,6 +221,7 @@ export const en: Messages = {
   login: {
     ready: "Log in to Claude Code",
     running: "Finish the login in the Claude Code window",
+    renewing: "Renewing the sign-in through Claude Code…",
     failed: "Could not open Claude Code. Check that it is installed.",
   },
   history: {
@@ -272,6 +275,7 @@ export const en: Messages = {
     risks: {
       token: "Reads the Claude Code sign-in token on this PC.",
       storage: "The token stays in memory, never saved or sent elsewhere.",
+      renewal: "When the sign-in expires, asks Claude Code to renew it in the background.",
       endpoint: "Uses an undocumented endpoint that may stop working.",
       unofficial: "Not an official Anthropic feature.",
       requests: (minutes) =>
@@ -343,7 +347,7 @@ export const id: Messages = {
     reasons: {
       pending: "Menghubungkan…",
       signed_out: "Claude Code belum login",
-      token_expired: "Login kedaluwarsa, buka Claude Code",
+      token_expired: "Login Claude Code kedaluwarsa",
       unauthorized: "Akses ditolak",
       unavailable: "Data resmi tidak tersedia",
       retrying: "Menghubungkan ulang…",
@@ -365,6 +369,7 @@ export const id: Messages = {
   login: {
     ready: "Login Claude Code",
     running: "Selesaikan login di jendela Claude Code",
+    renewing: "Memperpanjang login lewat Claude Code…",
     failed: "Gagal membuka Claude Code. Pastikan sudah terpasang.",
   },
   history: {
@@ -421,6 +426,7 @@ export const id: Messages = {
     risks: {
       token: "Membaca token login Claude Code di PC ini.",
       storage: "Token hanya di memori, tidak disimpan atau dikirim ke tempat lain.",
+      renewal: "Saat login kedaluwarsa, meminta Claude Code memperpanjangnya di latar belakang.",
       endpoint: "Memakai endpoint tak terdokumentasi yang bisa berhenti berfungsi.",
       unofficial: "Bukan fitur resmi Anthropic.",
       requests: (minutes) =>

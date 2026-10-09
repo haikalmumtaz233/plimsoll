@@ -318,6 +318,8 @@
       <div class="login">
         {#if view.login === "running"}
           <p class="login-note" role="status">{messages.login.running}</p>
+        {:else if view.login === "renewing"}
+          <p class="login-note" role="status">{messages.login.renewing}</p>
         {:else}
           <button type="button" class="login-button" onclick={login}>
             {messages.login.ready}

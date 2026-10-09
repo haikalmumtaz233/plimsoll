@@ -86,6 +86,7 @@
       <ul class="risks" id="accurate-confirm-risks">
         <li>{messages.accurate.risks.token}</li>
         <li>{messages.accurate.risks.storage}</li>
+        <li>{messages.accurate.risks.renewal}</li>
         <li>{messages.accurate.risks.endpoint}</li>
         <li>{messages.accurate.risks.unofficial}</li>
         <li>{messages.accurate.risks.requests(pollMinutes)}</li>

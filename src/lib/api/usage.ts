@@ -142,7 +142,7 @@ export interface UsageView {
   models: ModelLimitView[];
   credits: CreditsView | null;
   plan: string | null;
-  login: "hidden" | "ready" | "running";
+  login: "hidden" | "ready" | "running" | "renewing";
   generatedAt: number;
   officialUpdatedAt: number | null;
 }
