@@ -1,0 +1,6 @@
+overrides:
+  minimatch: ^11.0.3
+
+audit:
+  ignore:
+    - GHSA-gcqx-w48m-w2h4
