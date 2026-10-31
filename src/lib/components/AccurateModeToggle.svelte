@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Messages } from "../i18n/messages";
+  import { focusOnMount } from "../window/focus";
 
   interface Props {
     messages: Messages;
@@ -13,13 +14,6 @@
   let busy = $state(false);
   let confirming = $state(false);
   let checkbox = $state<HTMLInputElement | undefined>(undefined);
-  let heading = $state<HTMLHeadingElement | undefined>(undefined);
-
-  $effect(() => {
-    if (confirming) {
-      heading?.focus();
-    }
-  });
 
   async function apply(next: boolean) {
     busy = true;
@@ -80,7 +74,7 @@
       tabindex="-1"
       onkeydown={handleConfirmKeydown}
     >
-      <h3 class="confirm-title" id="accurate-confirm-title" tabindex="-1" bind:this={heading}>
+      <h3 class="confirm-title" id="accurate-confirm-title" tabindex="-1" {@attach focusOnMount}>
         {messages.accurate.confirmTitle}
       </h3>
       <ul class="risks" id="accurate-confirm-risks">

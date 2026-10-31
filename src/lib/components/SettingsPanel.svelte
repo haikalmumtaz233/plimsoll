@@ -8,6 +8,7 @@
     PreferencesView,
   } from "../api/usage";
   import type { Messages } from "../i18n/messages";
+  import { focusOnMount } from "../window/focus";
   import { intervalLabel, thresholdError } from "../settings/preferences";
   import AccurateModeToggle from "./AccurateModeToggle.svelte";
   import ManualPercent from "./ManualPercent.svelte";
@@ -86,11 +87,6 @@
   let error = $state("");
   let saved = $state(false);
   let busy = $state(false);
-  let heading = $state<HTMLHeadingElement | undefined>(undefined);
-
-  $effect(() => {
-    heading?.focus();
-  });
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
@@ -113,7 +109,7 @@
 </script>
 
 <section class="settings" aria-labelledby="settings-title">
-  <h2 class="heading" id="settings-title" tabindex="-1" bind:this={heading}>
+  <h2 class="heading" id="settings-title" tabindex="-1" {@attach focusOnMount}>
     {messages.settings.title}
   </h2>
   <AccurateModeToggle
