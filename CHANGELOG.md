@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- Updated the TLS library that Plimsoll uses to read your usage. The update fixes several advisories, including one that could expose connection secrets in debug output and one that could trust distrusted certificate authorities.
+
+### Changed
+
+- Updated Tauri, SQLite and the other app libraries to their latest releases.
+
 ## [1.0.1] - 2026-10-09
 
 ### Fixed
