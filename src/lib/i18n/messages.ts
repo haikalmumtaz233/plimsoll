@@ -19,6 +19,7 @@ export interface Messages {
     accurateModeFailed: string;
     dismiss: string;
     settings: string;
+    history: string;
     back: string;
     plan: (label: string) => string;
   };
@@ -146,6 +147,7 @@ export const en: Messages = {
     accurateModeFailed: "Could not change accurate mode. Try again.",
     dismiss: "Dismiss",
     settings: "Settings",
+    history: "History",
     back: "Back",
     plan: (label) => `Claude ${label} plan`,
   },
@@ -294,6 +296,7 @@ export const id: Messages = {
     accurateModeFailed: "Gagal mengubah mode akurat. Coba lagi.",
     dismiss: "Tutup",
     settings: "Pengaturan",
+    history: "Riwayat",
     back: "Kembali",
     plan: (label) => `Paket Claude ${label}`,
   },

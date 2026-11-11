@@ -1,20 +1,23 @@
 <script lang="ts">
   import type { Messages } from "../i18n/messages";
   import { dragHandle } from "../window/drag";
+  import type { Page, Subpage } from "../window/page";
 
   interface Props {
     messages: Messages;
     versionLabel: string;
     planLabel: string | null;
-    settingsOpen: boolean;
-    ontogglesettings: () => void;
+    page: Page;
+    ontogglepage: (target: Subpage) => void;
     onwindowdrag: () => void;
   }
 
-  let { messages, versionLabel, planLabel, settingsOpen, ontogglesettings, onwindowdrag }: Props =
-    $props();
+  let { messages, versionLabel, planLabel, page, ontogglepage, onwindowdrag }: Props = $props();
 
-  const toggleLabel = $derived(settingsOpen ? messages.app.back : messages.app.settings);
+  const historyOpen = $derived(page === "history");
+  const settingsOpen = $derived(page === "settings");
+  const historyLabel = $derived(historyOpen ? messages.app.back : messages.app.history);
+  const settingsLabel = $derived(settingsOpen ? messages.app.back : messages.app.settings);
 </script>
 
 <header class="header" {@attach dragHandle(onwindowdrag)}>
@@ -30,30 +33,57 @@
       </span>
     {/if}
   </div>
-  <button
-    class="toggle"
-    type="button"
-    aria-expanded={settingsOpen}
-    aria-label={toggleLabel}
-    title={toggleLabel}
-    onclick={ontogglesettings}
-  >
-    <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      {#if settingsOpen}
-        <path d="M10 3 5 8l5 5" />
-      {:else}
-        <path d="M2 4.5h6.5M13.5 4.5H14M2 11.5h1M7.5 11.5H14" />
-        <circle cx="11" cy="4.5" r="1.75" />
-        <circle cx="5" cy="11.5" r="1.75" />
-      {/if}
-    </svg>
-  </button>
+  <div class="actions">
+    <button
+      class="toggle"
+      type="button"
+      aria-expanded={historyOpen}
+      aria-label={historyLabel}
+      title={historyLabel}
+      onclick={() => {
+        ontogglepage("history");
+      }}
+    >
+      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        {#if historyOpen}
+          <path d="M10 3 5 8l5 5" />
+        {:else}
+          <path d="M2.5 13.5h11M4.5 11V8M8 11V3.5M11.5 11V6" />
+        {/if}
+      </svg>
+    </button>
+    <button
+      class="toggle"
+      type="button"
+      aria-expanded={settingsOpen}
+      aria-label={settingsLabel}
+      title={settingsLabel}
+      onclick={() => {
+        ontogglepage("settings");
+      }}
+    >
+      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        {#if settingsOpen}
+          <path d="M10 3 5 8l5 5" />
+        {:else}
+          <path d="M2 4.5h6.5M13.5 4.5H14M2 11.5h1M7.5 11.5H14" />
+          <circle cx="11" cy="4.5" r="1.75" />
+          <circle cx="5" cy="11.5" r="1.75" />
+        {/if}
+      </svg>
+    </button>
+  </div>
 </header>
 
 <style>
   .identity {
     display: flex;
     align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .actions {
+    display: flex;
     gap: var(--space-2);
   }
 

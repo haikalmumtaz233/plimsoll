@@ -2,11 +2,10 @@
   import type { UnlistenFn } from "@tauri-apps/api/event";
   import AppHeader from "./lib/components/AppHeader.svelte";
   import CreditsCard from "./lib/components/CreditsCard.svelte";
+  import HistoryPanel from "./lib/components/HistoryPanel.svelte";
   import LimitCard from "./lib/components/LimitCard.svelte";
   import SettingsPanel from "./lib/components/SettingsPanel.svelte";
   import TokenCard from "./lib/components/TokenCard.svelte";
-  import UsageBreakdown from "./lib/components/UsageBreakdown.svelte";
-  import UsageChart from "./lib/components/UsageChart.svelte";
   import { hidePopup, openUsagePage, readAppVersion, startPopupDrag } from "./lib/api/app";
   import {
     loadUsage,
@@ -36,13 +35,14 @@
   import { type HistoryRange } from "./lib/usage/history";
   import { effectiveRefresh, refreshLabel } from "./lib/usage/refresh";
   import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
+  import { togglePage, type Page, type Subpage } from "./lib/window/page";
 
   let version = $state<string | undefined>(undefined);
   let view = $state<UsageView | undefined>(undefined);
   let loadFailed = $state(false);
   let toggleError = $state("");
   let range = $state<HistoryRange>("day");
-  let settingsOpen = $state(false);
+  let page = $state<Page>("usage");
   let announcement = $state("");
   let clock = $state(Date.now());
   let loginError = $state("");
@@ -206,6 +206,10 @@
     }
   }
 
+  function switchPage(target: Subpage) {
+    page = togglePage(page, target);
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       void hidePopup();
@@ -220,10 +224,8 @@
     {messages}
     versionLabel={version === undefined ? "" : formatVersion(version)}
     planLabel={view?.plan ?? null}
-    {settingsOpen}
-    ontogglesettings={() => {
-      settingsOpen = !settingsOpen;
-    }}
+    {page}
+    ontogglepage={switchPage}
     onwindowdrag={() => {
       void startPopupDrag();
     }}
@@ -246,7 +248,7 @@
     <p class="status" role="status">
       {loadFailed ? messages.app.unavailable : messages.app.loading}
     </p>
-  {:else if settingsOpen}
+  {:else if page === "settings"}
     <SettingsPanel
       {messages}
       preferences={view.preferences}
@@ -265,6 +267,8 @@
     {#if toggleError !== ""}
       <p class="error" role="alert">{toggleError}</p>
     {/if}
+  {:else if page === "history"}
+    <HistoryPanel {messages} history={view.history} breakdown={view.breakdown} bind:range />
   {:else}
     {@const showingLimits = view.limits.length > 0}
     {@const syncing = isSyncing(view.accurateMode, view.status, showingLimits)}
@@ -384,8 +388,6 @@
         <path d="M9 3h4v4M13 3 7 9M11 9.5V13H3V5h3.5" />
       </svg>
     </button>
-    <UsageChart history={view.history} {messages} bind:range />
-    <UsageBreakdown breakdown={view.breakdown[range]} {range} {messages} />
   {/if}
 </main>
 
