@@ -339,14 +339,14 @@
           now={view.generatedAt}
         />
       {/each}
-      {#each view.models as model (model.model)}
+      {#each view.models as model, index (model.model)}
         <LimitCard
           {messages}
           limit={{ kind: "seven_day", percent: model.percent, resetsAt: model.resetsAt }}
           thresholds={view.preferences.thresholds}
           now={view.generatedAt}
           title={modelLimitTitle(model.model, messages)}
-          key={`model-${model.model}`}
+          key={`model-${String(index)}`}
         />
       {/each}
       {#if view.credits !== null}
