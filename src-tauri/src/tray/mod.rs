@@ -32,6 +32,10 @@ pub fn hide_popup<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     popup::hide(app)
 }
 
+pub fn fit_popup<R: Runtime>(app: &AppHandle<R>, content_height: u32) -> Result<(), AppError> {
+    popup::fit(app, content_height)
+}
+
 pub fn install<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let idle = TrayReading::Idle;
     let language = locale::resolve(LanguageChoice::System);

@@ -40,7 +40,8 @@ pub fn run() -> Result<(), AppError> {
             commands::set_preferences,
             commands::set_manual_percent,
             commands::set_autostart,
-            commands::hide_popup
+            commands::hide_popup,
+            commands::fit_popup
         ])
         .build(tauri::generate_context!())?
         .run(|_, event| {

@@ -9,6 +9,7 @@ const COMMANDS: &[&str] = &[
     "set_manual_percent",
     "set_autostart",
     "hide_popup",
+    "fit_popup",
 ];
 
 fn main() {

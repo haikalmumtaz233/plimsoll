@@ -1,4 +1,6 @@
 pub const GAP: i32 = 12;
+pub const MIN_HEIGHT: u32 = 120;
+pub const MAX_HEIGHT: u32 = 600;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Area {
@@ -81,6 +83,32 @@ pub fn corner(popup: Size, work: Area) -> Point {
     )
 }
 
+#[must_use]
+pub fn logical_height(content: u32) -> u32 {
+    content.clamp(MIN_HEIGHT, MAX_HEIGHT)
+}
+
+#[must_use]
+pub fn refit(popup: Area, height: i32, work: Area) -> Area {
+    let height = height.min(work.height);
+    let y = if popup.center().y >= work.center().y {
+        popup.bottom() - height
+    } else {
+        popup.y
+    };
+    let size = Size {
+        width: popup.width,
+        height,
+    };
+    let point = clamp(Point { x: popup.x, y }, size, work);
+    Area {
+        x: point.x,
+        y: point.y,
+        width: popup.width,
+        height,
+    }
+}
+
 fn taskbar_edge(center: Point, work: Area) -> Edge {
     if center.y < work.y {
         Edge::Top
@@ -102,7 +130,9 @@ fn clamp(point: Point, popup: Size, work: Area) -> Point {
 
 #[cfg(test)]
 mod tests {
-    use super::{Area, GAP, Point, Size, beside_icon, corner};
+    use super::{
+        Area, GAP, MAX_HEIGHT, MIN_HEIGHT, Point, Size, beside_icon, corner, logical_height, refit,
+    };
 
     const SCREEN: Area = Area {
         x: 0,
@@ -202,5 +232,93 @@ mod tests {
             height: 400,
         };
         assert_eq!(corner(POPUP, small), Point { x: 100, y: 50 });
+    }
+
+    #[test]
+    fn content_heights_stay_between_the_popup_bounds() {
+        assert_eq!(logical_height(0), MIN_HEIGHT);
+        assert_eq!(logical_height(412), 412);
+        assert_eq!(logical_height(5000), MAX_HEIGHT);
+    }
+
+    #[test]
+    fn refitting_above_a_bottom_taskbar_keeps_the_bottom_edge() {
+        let work = Area {
+            height: 1032,
+            ..SCREEN
+        };
+        let popup = Area {
+            x: 1332,
+            y: 1032 - GAP - 600,
+            width: 360,
+            height: 600,
+        };
+        assert_eq!(
+            refit(popup, 400, work),
+            Area {
+                y: 1032 - GAP - 400,
+                height: 400,
+                ..popup
+            }
+        );
+    }
+
+    #[test]
+    fn refitting_below_a_top_taskbar_keeps_the_top_edge() {
+        let work = Area {
+            y: 48,
+            height: 1032,
+            ..SCREEN
+        };
+        let popup = Area {
+            x: 1332,
+            y: 48 + GAP,
+            width: 360,
+            height: 380,
+        };
+        assert_eq!(
+            refit(popup, 560, work),
+            Area {
+                height: 560,
+                ..popup
+            }
+        );
+    }
+
+    #[test]
+    fn refitting_a_dragged_popup_follows_its_nearer_edge() {
+        let popup = Area {
+            x: 400,
+            y: 100,
+            width: 360,
+            height: 600,
+        };
+        assert_eq!(refit(popup, 300, SCREEN).y, 100);
+        let lower = Area { y: 400, ..popup };
+        assert_eq!(refit(lower, 300, SCREEN).y, 700);
+    }
+
+    #[test]
+    fn refitting_stays_inside_the_work_area() {
+        let work = Area {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 500,
+        };
+        let popup = Area {
+            x: 1560,
+            y: 200,
+            width: 360,
+            height: 288,
+        };
+        assert_eq!(
+            refit(popup, 600, work),
+            Area {
+                y: 0,
+                height: 500,
+                ..popup
+            }
+        );
     }
 }
