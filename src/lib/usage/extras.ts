@@ -12,10 +12,15 @@ const KNOWN_MODELS: Readonly<Record<string, string>> = {
   haiku: "Haiku",
 };
 
+const MODEL_IDENTIFIER = /^[a-z0-9_-]+$/;
+
 export function modelLabel(model: string): string {
   const known = KNOWN_MODELS[model];
   if (known !== undefined) {
     return known;
+  }
+  if (!MODEL_IDENTIFIER.test(model)) {
+    return model;
   }
   return model
     .split(/[_-]+/)

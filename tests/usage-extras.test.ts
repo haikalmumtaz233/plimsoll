@@ -17,6 +17,13 @@ describe("modelLabel", () => {
     expect(modelLabel("sonnet-4")).toBe("Sonnet 4");
   });
 
+  it("shows the server's display name as it was sent", () => {
+    expect(modelLabel("Fable")).toBe("Fable");
+    expect(modelLabel("Claude Code")).toBe("Claude Code");
+    expect(modelLabel("Sonnet-4.5 (1M)")).toBe("Sonnet-4.5 (1M)");
+    expect(modelLimitTitle("Fable", id)).toBe("Mingguan · Fable");
+  });
+
   it("titles a model limit in both languages", () => {
     expect(modelLimitTitle("opus", en)).toBe("Weekly · Opus");
     expect(modelLimitTitle("sonnet", id)).toBe("Mingguan · Sonnet");
