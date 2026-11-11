@@ -6,7 +6,13 @@
   import LimitCard from "./lib/components/LimitCard.svelte";
   import SettingsPanel from "./lib/components/SettingsPanel.svelte";
   import TokenCard from "./lib/components/TokenCard.svelte";
-  import { hidePopup, openUsagePage, readAppVersion, startPopupDrag } from "./lib/api/app";
+  import {
+    fitPopup,
+    hidePopup,
+    openUsagePage,
+    readAppVersion,
+    startPopupDrag,
+  } from "./lib/api/app";
   import {
     loadUsage,
     onUsageAlert,
@@ -35,6 +41,7 @@
   import { type HistoryRange } from "./lib/usage/history";
   import { effectiveRefresh, refreshLabel } from "./lib/usage/refresh";
   import { localeFromTag, messagesFor, type Locale } from "./lib/i18n/messages";
+  import { fitToContent } from "./lib/window/fit";
   import { togglePage, type Page, type Subpage } from "./lib/window/page";
 
   let version = $state<string | undefined>(undefined);
@@ -46,6 +53,8 @@
   let announcement = $state("");
   let clock = $state(Date.now());
   let loginError = $state("");
+
+  const contentReady = $derived(view !== undefined || loadFailed);
 
   const refreshState = $derived(
     view === undefined ? "blocked" : effectiveRefresh(view.refresh, clock),
@@ -210,6 +219,10 @@
     page = togglePage(page, target);
   }
 
+  function resizePopup(height: number) {
+    void fitPopup(height).catch(() => undefined);
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       void hidePopup();
@@ -219,7 +232,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<main class="popup">
+<main class="popup" {@attach contentReady && fitToContent(resizePopup)}>
   <AppHeader
     {messages}
     versionLabel={version === undefined ? "" : formatVersion(version)}
