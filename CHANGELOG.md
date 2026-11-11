@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Weekly limits for a single model now show the model's name, for example "Weekly · Fable", instead of "Weekly · Scoped". Plimsoll reads the name the usage endpoint sends with the limit, so new models show up by name without an update.
+
 ## [1.0.2] - 2026-11-01
 
 ### Security
