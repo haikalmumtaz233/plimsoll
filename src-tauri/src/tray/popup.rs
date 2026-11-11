@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use tauri::webview::PageLoadEvent;
 use tauri::{
-    AppHandle, Manager, Monitor, PhysicalPosition, Rect, Runtime, WebviewWindow,
-    WebviewWindowBuilder,
+    AppHandle, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize, Rect, Runtime,
+    WebviewWindow, WebviewWindowBuilder,
 };
 
 use super::placement::{self, Area, Point, Size};
@@ -87,6 +87,47 @@ pub fn hide<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     popup.hide()?;
     schedule_release(app);
     Ok(())
+}
+
+pub fn fit<R: Runtime>(app: &AppHandle<R>, content: u32) -> Result<(), AppError> {
+    let Some(popup) = app.get_webview_window(POPUP_LABEL) else {
+        return Ok(());
+    };
+    let inner = popup.inner_size()?;
+    let target = LogicalSize::new(0, placement::logical_height(content))
+        .to_physical::<u32>(popup.scale_factor()?)
+        .height;
+    if target == inner.height {
+        return Ok(());
+    }
+    let frame = popup_area(&popup)?;
+    let work = popup.current_monitor()?.as_ref().and_then(work_area);
+    let chrome = frame.height.saturating_sub(to_pixels(inner.height)?);
+    let Some(work) = work else {
+        popup.set_size(PhysicalSize::new(inner.width, target))?;
+        return Ok(());
+    };
+    let fitted = placement::refit(frame, to_pixels(target)?.saturating_add(chrome), work);
+    let height =
+        u32::try_from(fitted.height.saturating_sub(chrome)).map_err(|_| AppError::WindowSize)?;
+    popup.set_size(PhysicalSize::new(inner.width, height))?;
+    popup.set_position(PhysicalPosition::new(fitted.x, fitted.y))?;
+    Ok(())
+}
+
+fn popup_area<R: Runtime>(popup: &WebviewWindow<R>) -> Result<Area, AppError> {
+    let position = popup.outer_position()?;
+    let size = popup.outer_size()?;
+    Ok(Area {
+        x: position.x,
+        y: position.y,
+        width: to_pixels(size.width)?,
+        height: to_pixels(size.height)?,
+    })
+}
+
+fn to_pixels(length: u32) -> Result<i32, AppError> {
+    i32::try_from(length).map_err(|_| AppError::WindowSize)
 }
 
 pub fn toggle<R: Runtime>(app: &AppHandle<R>, anchor: Option<Rect>) -> Result<(), AppError> {

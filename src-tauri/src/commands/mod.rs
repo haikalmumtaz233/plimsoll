@@ -24,6 +24,8 @@ pub enum CommandError {
     InvalidManual,
     #[error("the popup could not be hidden")]
     Popup,
+    #[error("the popup could not be resized")]
+    Resize,
     #[error("the claude code login could not be opened")]
     Login,
     #[error("the usage page could not be opened")]
@@ -163,6 +165,15 @@ pub fn hide_popup<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
     tray::hide_popup(&app).map_err(|error| {
         diagnostics::error("popup", &format!("failed to hide the popup: {error}"));
         CommandError::Popup
+    })
+}
+
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
+pub fn fit_popup<R: Runtime>(app: AppHandle<R>, height: u32) -> Result<(), CommandError> {
+    tray::fit_popup(&app, height).map_err(|error| {
+        diagnostics::error("popup", &format!("failed to resize the popup: {error}"));
+        CommandError::Resize
     })
 }
 

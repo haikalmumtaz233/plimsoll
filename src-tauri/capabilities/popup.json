@@ -17,6 +17,7 @@
     "allow-set-preferences",
     "allow-set-manual-percent",
     "allow-set-autostart",
-    "allow-hide-popup"
+    "allow-hide-popup",
+    "allow-fit-popup"
   ]
 }

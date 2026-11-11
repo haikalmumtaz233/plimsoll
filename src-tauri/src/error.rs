@@ -16,4 +16,6 @@ pub enum AppError {
     MissingTray,
     #[error("window {0} is missing")]
     MissingWindow(&'static str),
+    #[error("window size is out of range")]
+    WindowSize,
 }
