@@ -2,6 +2,7 @@ use super::clock::Timestamp;
 use super::limit::{LimitSnapshot, STALE_AFTER, Utilization};
 
 const MAX_MODEL_NAME: usize = 32;
+const MODEL_NAME_PUNCTUATION: &[u8] = b" _-.()";
 const MAX_EXPONENT: u8 = 6;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -10,19 +11,26 @@ pub struct ModelName(String);
 impl ModelName {
     #[must_use]
     pub fn parse(text: &str) -> Option<Self> {
-        let name = text.trim().to_ascii_lowercase();
-        let valid = !name.is_empty()
-            && name.len() <= MAX_MODEL_NAME
-            && name
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-');
-        valid.then_some(Self(name))
+        let name = text.trim();
+        if name.is_empty() || name.len() > MAX_MODEL_NAME || !name.bytes().all(is_label_byte) {
+            return None;
+        }
+        Some(Self(name.to_owned()))
     }
 
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    #[must_use]
+    pub fn matches(&self, other: &Self) -> bool {
+        self.0.eq_ignore_ascii_case(&other.0)
+    }
+}
+
+fn is_label_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || MODEL_NAME_PUNCTUATION.contains(&byte)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -176,16 +184,29 @@ mod tests {
     }
 
     #[test]
-    fn model_names_are_short_lowercase_identifiers() {
-        assert_eq!(
-            ModelName::parse(" Opus ").map(|name| name.as_str().to_owned()),
-            Some("opus".to_owned())
-        );
-        assert!(ModelName::parse("sonnet-4_5").is_some());
+    fn model_names_keep_the_server_label() {
+        let label = |text: &str| ModelName::parse(text).map(|name| name.as_str().to_owned());
+        assert_eq!(label(" Fable "), Some("Fable".to_owned()));
+        assert_eq!(label("Opus 4.5 (1M)"), Some("Opus 4.5 (1M)".to_owned()));
+        assert_eq!(label("sonnet-4_5"), Some("sonnet-4_5".to_owned()));
+        assert_eq!(label(&"a".repeat(32)), Some("a".repeat(32)));
+    }
+
+    #[test]
+    fn model_names_reject_empty_long_and_markup_text() {
         assert_eq!(ModelName::parse(""), None);
-        assert_eq!(ModelName::parse("opus 4"), None);
+        assert_eq!(ModelName::parse("   "), None);
         assert_eq!(ModelName::parse("<script>"), None);
+        assert_eq!(ModelName::parse("line\nbreak"), None);
+        assert_eq!(ModelName::parse("Fäble"), None);
         assert_eq!(ModelName::parse(&"a".repeat(33)), None);
+    }
+
+    #[test]
+    fn model_names_match_regardless_of_case() {
+        let fable = ModelName::parse("Fable").expect("name");
+        assert!(fable.matches(&ModelName::parse("fable").expect("name")));
+        assert!(!fable.matches(&ModelName::parse("Opus").expect("name")));
     }
 
     #[test]

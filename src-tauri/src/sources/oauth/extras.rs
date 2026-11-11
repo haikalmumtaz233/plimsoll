@@ -7,6 +7,7 @@ use crate::sources::rfc3339;
 
 const WEEKLY_PREFIX: &str = "weekly_";
 const WEEKLY_ALL: &str = "weekly_all";
+const SCOPE_KINDS: [&str; 2] = ["model", "surface"];
 const LEGACY_MODELS: [(&str, &str); 2] =
     [("seven_day_opus", "opus"), ("seven_day_sonnet", "sonnet")];
 const MAX_MODELS: usize = 8;
@@ -31,7 +32,8 @@ fn models(body: &Map<String, Value>) -> Vec<ModelLimit> {
         .into_iter()
         .filter_map(|(key, name)| legacy_model(body.get(key)?, name));
     for limit in listed.chain(legacy) {
-        if found.len() < MAX_MODELS && found.iter().all(|known| known.model != limit.model) {
+        let duplicate = found.iter().any(|known| known.model.matches(&limit.model));
+        if found.len() < MAX_MODELS && !duplicate {
             found.push(limit);
         }
     }
@@ -45,14 +47,22 @@ fn listed_model(entry: &Value) -> Option<ModelLimit> {
         .filter(|_| kind != WEEKLY_ALL)?;
     let name = entry
         .get("scope")
-        .and_then(Value::as_str)
-        .and_then(ModelName::parse)
+        .and_then(scope_label)
         .or_else(|| ModelName::parse(suffix))?;
     Some(ModelLimit {
         model: name,
         utilization: Utilization::from_percent(entry.get("percent")?.as_f64()?)?,
         resets_at: reset_time(entry.get("resets_at")),
     })
+}
+
+fn scope_label(scope: &Value) -> Option<ModelName> {
+    if let Some(label) = scope.as_str() {
+        return ModelName::parse(label);
+    }
+    SCOPE_KINDS
+        .into_iter()
+        .find_map(|kind| ModelName::parse(scope.get(kind)?.get("display_name")?.as_str()?))
 }
 
 fn legacy_model(window: &Value, name: &str) -> Option<ModelLimit> {
@@ -246,7 +256,65 @@ mod tests {
                 )
             })
             .collect();
-        assert_eq!(names, vec![("opus", 81.0, true), ("sonnet", 12.0, false)]);
+        assert_eq!(names, vec![("opus", 81.0, true), ("Sonnet", 12.0, false)]);
+    }
+
+    fn scoped(percent: u8, scope: &Value) -> Value {
+        json!({
+            "kind": "weekly_scoped", "group": "weekly", "percent": percent,
+            "severity": "normal", "resets_at": "2026-11-16T00:00:00.150965+00:00",
+            "scope": scope, "is_active": false
+        })
+    }
+
+    fn labels(body: &Value) -> Vec<(String, f64, bool)> {
+        parse(&bytes(body))
+            .0
+            .iter()
+            .map(|limit| {
+                (
+                    limit.model.as_str().to_owned(),
+                    limit.utilization.percent(),
+                    limit.resets_at.is_some(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn names_a_scoped_limit_after_its_model() {
+        let fable = json!({ "model": { "id": null, "display_name": "Fable" }, "surface": null });
+        let mut body = spike_body();
+        body["limits"] = json!([
+            { "kind": "weekly_all", "group": "weekly", "percent": 51, "scope": null },
+            scoped(28, &fable)
+        ]);
+        assert_eq!(labels(&body), vec![("Fable".to_owned(), 28.0, true)]);
+    }
+
+    #[test]
+    fn names_a_scoped_limit_after_its_surface_when_no_model_is_given() {
+        let surface = json!({ "model": null, "surface": { "display_name": "Claude Code" } });
+        let mut body = spike_body();
+        body["limits"] = json!([scoped(7, &surface)]);
+        assert_eq!(labels(&body), vec![("Claude Code".to_owned(), 7.0, true)]);
+    }
+
+    #[test]
+    fn falls_back_to_the_kind_when_the_scope_is_unreadable() {
+        let unreadable = json!({ "model": { "display_name": "<b>" }, "surface": 3 });
+        let mut body = spike_body();
+        body["limits"] = json!([scoped(9, &unreadable)]);
+        assert_eq!(labels(&body), vec![("scoped".to_owned(), 9.0, true)]);
+    }
+
+    #[test]
+    fn a_scoped_model_hides_its_legacy_window_regardless_of_case() {
+        let opus = json!({ "model": { "display_name": "Opus" } });
+        let mut body = spike_body();
+        body["limits"] = json!([scoped(30, &opus)]);
+        body["seven_day_opus"] = json!({ "utilization": 29 });
+        assert_eq!(labels(&body), vec![("Opus".to_owned(), 30.0, true)]);
     }
 
     #[test]
