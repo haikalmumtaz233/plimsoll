@@ -14,6 +14,10 @@ export function hidePopup(): Promise<void> {
   return invoke("hide_popup");
 }
 
+export function fitPopup(height: number): Promise<void> {
+  return invoke("fit_popup", { height });
+}
+
 export async function startPopupDrag(): Promise<void> {
   await getCurrentWindow().startDragging();
 }
