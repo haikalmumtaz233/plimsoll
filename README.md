@@ -24,7 +24,7 @@ Turn on **Accurate mode** in Settings to see the official percentages.
 - Per-model weekly limits and extra usage credits
 - Tray icon with the five-hour percentage and alert colors
 - Notifications at 50, 80, and 95 percent, adjustable
-- Token history by model and project
+- Token history by model and project on its own page
 - English and Indonesian, light and dark themes
 
 ## Privacy
