@@ -68,6 +68,7 @@ const OAUTH_SEEDS: &[&[u8]] = &[
 
 const OAUTH_EXTRA_SEEDS: &[&[u8]] = &[
     br#"{"limits":[{"kind":"weekly_opus","percent":81,"resets_at":"2026-10-05T00:00:00Z","scope":"opus"}],"seven_day_sonnet":{"utilization":10,"resets_at":null}}"#,
+    br#"{"limits":[{"kind":"weekly_scoped","percent":28,"resets_at":"2026-11-16T00:00:00.150965+00:00","scope":{"model":{"id":null,"display_name":"Fable"},"surface":null}}]}"#,
     br#"{"spend":{"used":{"amount_minor":1750,"currency":"USD","exponent":2},"limit":{"amount_minor":2000,"currency":"USD","exponent":2},"percent":0,"enabled":false,"disabled_reason":"out_of_credits"},"extra_usage":{"is_enabled":false,"used_credits":1750,"monthly_limit":2000,"currency":"USD","decimal_places":2,"credits_ever_enabled":true}}"#,
 ];
 
@@ -229,7 +230,7 @@ fn oauth_extras_never_panic_and_yield_valid_models_and_credits() {
             assert!(
                 models[..index]
                     .iter()
-                    .all(|other| other.model != limit.model)
+                    .all(|other| !other.model.matches(&limit.model))
             );
         }
         if let Some(credits) = credits {
