@@ -3,7 +3,7 @@
 > Your Claude plan limits, in the Windows system tray.
 
 <p align="center">
-  <img src="assets/popup.png" alt="The Plimsoll popup on a Max 20x plan with the five-hour and weekly limits at 0 percent and a 24-hour token history chart." width="360" />
+  <img src="assets/popup.png" alt="The Plimsoll popup on a Pro plan with the five-hour limit at 11 percent, the weekly limit at 56 percent, the weekly Fable limit at 28 percent and extra usage off." width="360" />
 </p>
 
 ## Install
