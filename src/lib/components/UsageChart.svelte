@@ -108,7 +108,7 @@
 
 <section class="chart" aria-labelledby="history-title">
   <div class="heading">
-    <h2 class="title" id="history-title">{messages.history.title}</h2>
+    <h3 class="title" id="history-title">{messages.history.title}</h3>
     <SegmentedControl
       name="history-range"
       legend={messages.history.rangeLegend}

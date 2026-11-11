@@ -27,7 +27,7 @@
 
 <section class="breakdown" aria-labelledby="breakdown-title">
   <div class="heading">
-    <h2 class="title" id="breakdown-title">{messages.breakdown.title}</h2>
+    <h3 class="title" id="breakdown-title">{messages.breakdown.title}</h3>
     <SegmentedControl
       name="breakdown-kind"
       legend={messages.breakdown.groupBy}
